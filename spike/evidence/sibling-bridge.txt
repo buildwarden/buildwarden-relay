@@ -1,0 +1,36 @@
+bridge0: flags=8863<UP,BROADCAST,SMART,RUNNING,SIMPLEX,MULTICAST> mtu 1500
+	options=63<RXCSUM,TXCSUM,TSO4,TSO6>
+	ether 36:e9:99:7a:2f:40
+	Configuration:
+		id 0:0:0:0:0:0 priority 0 hellotime 0 fwddelay 0
+		maxage 0 holdcnt 0 proto stp maxaddr 256 timeout 1200
+		root id 0:0:0:0:0:0 priority 0 ifcost 0 port 0
+		ipfilter disabled flags 0x0
+	member: en1 flags=3<LEARNING,DISCOVER>
+	        ifmaxaddr 0 port 10 priority 0 path cost 0
+	member: en6 flags=3<LEARNING,DISCOVER>
+	        ifmaxaddr 0 port 11 priority 0 path cost 0
+	member: en2 flags=3<LEARNING,DISCOVER>
+	        ifmaxaddr 0 port 12 priority 0 path cost 0
+	Address cache:
+	nd6 options=201<PERFORMNUD,DAD>
+	media: <unknown type>
+	status: inactive
+bridge100: flags=8a63<UP,BROADCAST,SMART,RUNNING,ALLMULTI,SIMPLEX,MULTICAST> mtu 1500
+	options=63<RXCSUM,TXCSUM,TSO4,TSO6>
+	ether fe:b2:14:89:d1:64
+	inet 192.168.64.1 netmask 0xffffff00 broadcast 192.168.64.255
+	inet6 fe80::fcb2:14ff:fe89:d164%bridge100 prefixlen 64 scopeid 0x1e 
+	inet6 fd2d:7527:e760:2ab:1435:41fa:537a:70b2 prefixlen 64 autoconf secured 
+	Configuration:
+		id 0:0:0:0:0:0 priority 0 hellotime 0 fwddelay 0
+		maxage 0 holdcnt 0 proto stp maxaddr 256 timeout 1200
+		root id 0:0:0:0:0:0 priority 0 ifcost 0 port 0
+		ipfilter disabled flags 0x0
+	member: vmenet0 flags=20803<LEARNING,DISCOVER,PRIVATE,VIRTIO>
+	        ifmaxaddr 0 port 29 priority 0 path cost 0
+	Address cache:
+		36:e2:aa:29:11:e4 Vlan1 vmenet0 1192 flags=0<>
+	nd6 options=201<PERFORMNUD,DAD>
+	media: autoselect
+	status: active
