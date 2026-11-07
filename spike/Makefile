@@ -8,6 +8,10 @@ HERMIT_TAG   := hermit-0.13.2
 KERNEL_TAG   := v0.13.2
 LOADER_TAG   := v0.5.7
 TOOLCHAIN    := nightly-2026-02-01
+# The loader (and host-side tools) need a newer nightly than hermit-rs pins;
+# nightly-2026-11-01 builds a loader that hangs mid-boot, so this is pinned
+# near the loader release (built with rustc 1.97.1).
+LOADER_TOOLCHAIN := nightly-2026-08-15
 # The loader release's aarch64 binary and its test app (a Git LFS object),
 # pinned by hash.
 LOADER_SHA   := 1b6faeb93cf1a0a240641e2286f0db5fecd19a6b7fb5625496e089a34fd3e5d8
@@ -30,26 +34,35 @@ OUT  := out
 export PATH := /opt/homebrew/opt/rustup/bin:$(HOME)/.cargo/bin:$(PATH)
 LLVM  = $(firstword $(wildcard $(HOME)/.rustup/toolchains/$(TOOLCHAIN)-*/lib/rustlib/*/bin))
 
-# Source builds (Step 0.2 and 0.3).
-LOADER_ELF := $(WORK)/loader/target/aarch64-unknown-none-softfloat/release/hermit-loader-aarch64
+# Source builds, from the pinned tags plus patches/ (see REPORT.md).
+LOADER_ELF := $(WORK)/loader/target/release/hermit-loader-aarch64-elf
+LOADER_VZ  := $(WORK)/loader/target/release/hermit-loader-aarch64-vz
+LOADER_IMG := $(OUT)/hermit-loader-vz.Image
 HELLO      := $(WORK)/hermit-rs/target/aarch64-unknown-hermit/release/hello_world
-# Stock release artifacts, used where the source build did not run.
+HELLO_VZ   := apps/hello-vz/target/aarch64-unknown-hermit/release/hello-vz
+ECHO_VZ    := apps/echo-vz/target/aarch64-unknown-hermit/release/echo-vz
+# Stock release artifacts, for the unpatched attempts.
 STOCK_LOADER := $(WORK)/release-$(LOADER_TAG)/hermit-loader-aarch64-elf
 STOCK_HELLO  := $(WORK)/fixture-$(LOADER_TAG)/hello_world
 
 VZRUN := $(OUT)/vzrun
 STUBS := control spin dtb pc uart ecam
 
-.PHONY: all sources loader hello qemu stock qemu-stock header vz-stock stubs \
-	probe probe-sibling clean
+# Hermit apps build against the patched kernel checkout, not the one
+# hermit-rs would fetch (the hermit crate's HERMIT_MANIFEST_DIR).
+HERMIT_BUILD := HERMIT_MANIFEST_DIR=$(abspath $(WORK)/kernel) cargo +$(TOOLCHAIN) build \
+	-Zbuild-std=std,panic_abort -Zbuild-std-features=compiler-builtins-mem \
+	--target aarch64-unknown-hermit --release
 
-all: qemu-stock vz-stock stubs probe-sibling
+.PHONY: all sources patched loader apps qemu checks stock qemu-stock header vz-stock \
+	stubs probe probe-sibling clean
+
+all: checks
 
 # --- Upstream sources ---------------------------------------------------------
 
 $(WORK)/hermit-rs:
 	git clone -q --depth 1 -b $(HERMIT_TAG) https://github.com/hermit-os/hermit-rs $@
-	git -C $@ submodule update -q --init --depth 1 kernel
 $(WORK)/loader:
 	git clone -q --depth 1 -b $(LOADER_TAG) https://github.com/hermit-os/loader $@
 $(WORK)/kernel:
@@ -57,22 +70,39 @@ $(WORK)/kernel:
 
 sources: $(WORK)/hermit-rs $(WORK)/loader $(WORK)/kernel
 
-# Step 0.3: the ARM64 loader (ELF).
-loader: $(WORK)/loader
-	cd $(WORK)/loader && cargo +$(TOOLCHAIN) xtask build --target aarch64-elf --release
+# The VZ patches, applied once to fresh clones (patches/*-vz.patch). The
+# *-checkpoints and *-tracing patches are the boot-tracing tools; apply them
+# by hand on top when debugging (see REPORT.md, "Boot tracing").
+$(WORK)/.patched: patches/loader-v0.5.7-vz.patch patches/kernel-v0.13.2-vz.patch | sources
+	git -C $(WORK)/loader apply $(abspath patches/loader-v0.5.7-vz.patch)
+	git -C $(WORK)/kernel apply $(abspath patches/kernel-v0.13.2-vz.patch)
+	touch $@
+patched: $(WORK)/.patched
 
-# Step 0.2: hello_world for aarch64-unknown-hermit.
-hello: $(WORK)/hermit-rs
-	cd $(WORK)/hermit-rs && cargo +$(TOOLCHAIN) build -p hello_world \
-		-Zbuild-std=std,panic_abort -Zbuild-std-features=compiler-builtins-mem \
-		--target aarch64-unknown-hermit --release
+# The loader for Qemu (aarch64-elf) and for VZ (aarch64-vz, an arm64 Image).
+loader: $(WORK)/.patched
+	cd $(WORK)/loader && cargo +$(LOADER_TOOLCHAIN) xtask build --target aarch64-elf --release
+	cd $(WORK)/loader && cargo +$(LOADER_TOOLCHAIN) xtask build --target aarch64-vz --release
+	mkdir -p $(OUT)
+	$(LLVM)/llvm-objcopy -O binary $(LOADER_VZ) $(LOADER_IMG)
 
-# Step 0.4: the QEMU/HVF baseline from source.
-qemu: loader hello
+# Upstream hello_world, and the spike's two apps (apps/).
+apps: $(WORK)/.patched
+	cd $(WORK)/hermit-rs && $(HERMIT_BUILD) -p hello_world --features hermit/virtio-console
+	cd apps/hello-vz && $(HERMIT_BUILD)
+	cd apps/echo-vz && $(HERMIT_BUILD)
+
+# Step 0.4: the Qemu/HVF baseline from source.
+qemu: loader apps
 	qemu-system-aarch64 -machine virt,gic-version=3 -accel hvf -cpu host \
 		-smp 1 -m 512M -display none -serial stdio -semihosting \
 		-kernel $(LOADER_ELF) \
 		-device guest-loader,addr=0x48000000,initrd=$(HELLO)
+
+# The acceptance checks, both exit criteria among them (checks.sh). vz-net
+# needs macOS Local Network permission for the terminal running it.
+checks: loader apps $(VZRUN)
+	sh checks.sh $(OUT)/checks
 
 # --- Stock artifacts ----------------------------------------------------------
 

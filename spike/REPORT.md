@@ -1,243 +1,245 @@
 # VZ spike report: Hermit on Apple Virtualization (M0)
 
-Run 2026-11-07 on the MacBook (Apple silicon, macOS 27.0.1), unattended, by
-Claude against `VZ Spike Runbook — Hermit on Apple Virtualization.md`. Pins:
-Hermit `hermit-0.13.2` / kernel `v0.13.2`, loader `v0.5.7`, toolchain
-`nightly-2026-02-01` (Decision 17; all in the Makefile's top block).
+Run 2026-11-07 on the MacBook (Apple silicon, macOS 27.0.1) against
+`VZ Spike Runbook — Hermit on Apple Virtualization.md`, unattended under
+Jeff's standing authority. Pins (Decision 17, all in the Makefile's top
+block): Hermit `hermit-0.13.2`, kernel `v0.13.2`, loader `v0.5.7`, toolchains
+`nightly-2026-02-01` (Hermit apps) and `nightly-2026-08-15` (loader).
 
 ## Verdict
 
-**Stock Hermit does not boot on VZ, and the gap is larger than the runbook's
-two items, but every piece of it is small, local and understood.** No exit
-criterion is met yet: building patched Hermit was blocked in this session (see
-[What could not run](#what-could-not-run)). Everything on the VZ side of the
-boundary was measured directly instead, so the patch list below is the full
-list against a known machine, not a guess.
+**Both exit criteria are met, with patches.** Hermit 0.13.2 boots on VZ
+through `VZLinuxBootLoader`, prints Hello World over VZ's virtio console, takes
+a DHCP lease on VZ NAT, and answers a TCP connection from the host. Upstream
+Hermit does neither: the loader needs a VZ boot target, and the kernel needs
+nine fixes, each found and proven on VZ.
 
-- **Stage A:** five loader gaps and three kernel gaps, listed in
-  [the patch list](#stage-a-patch-list). The runbook's app-handoff gap is
-  already closed upstream. Estimate: a few days of loader and kernel work, with
-  nothing that needs the EFI route. The VZ escape hatch (Decision 12) is
-  **not** triggered on this evidence.
-- **Stage B:** VZ presents virtio over **PCI, not MMIO**, which Hermit's
-  default `pci` feature already matches. DHCP, DNS and TCP/ICMP egress work
-  over VZ NAT. **Sibling VMs cannot reach each other over VZ NAT** (layer-2
-  isolation, measured). That makes NAT alone insufficient for Decision 1;
-  see [Is NAT enough?](#is-nat-enough).
-- **Beyond VZ, for M3:** stock Hermit has **one network interface** and **no
-  entropy source on aarch64**. Both bind the relay on every hypervisor, not
-  just VZ.
+| Check (`make checks`) | Result |
+|---|---|
+| A: Hello World on VZ's virtio console | **PASS**: `Hello World from Hermit on VZ!` (`evidence/vz-hello-console.log`) |
+| B: DHCP on VZ NAT, then host → guest TCP | **PASS**: lease `192.168.64.x` from `192.168.64.1`, host echo round trip, **no port forward** (`evidence/vz-net-console.log`) |
+| Regression: Qemu virt, PL011 console | PASS |
+| Regression: Qemu virt, modern virtio-console | PASS |
+| Regression: Qemu virt, modern virtio-net, TCP echo | PASS |
 
-## Attempts
+`evidence/checks-summary.txt` holds the full run; the same five checks also
+pass from fresh clones (the patches apply cleanly to the pinned tags).
+
+**Scope:** the VZ escape hatch (Decision 12) is not triggered. The VZ work is
+a patch set of about 170 lines of kernel changes and one new loader target,
+all upstreamable except the loader's fixed link address. Two findings bind the
+relay on every hypervisor, not just VZ: **Hermit has one network interface**,
+and **aarch64 Hermit has no real entropy**. Those, not VZ, set the size of M3.
+
+## Answers the kickoff is waiting on
+
+- **Is NAT enough?** For the relay's upstream and for host → relay, **yes**.
+  The host reaches the guest's NAT address directly, with no port forward.
+  For sibling build VM → relay, **no**: VZ NAT isolates VMs from each other at
+  layer 2 (each VM's port on `bridge100` is `PRIVATE`; ARP between two VMs
+  never completes; `evidence/sibling-*.txt`). Bridged networking is not
+  needed. Recommended path below.
+- **Is vsock needed?** Not for reachability: host → relay works over NAT.
+  vsock would remove one constraint: warden's process needs macOS Local
+  Network permission to reach the NAT address. Hermit already ships a
+  virtio-vsock PCI driver (`drivers/vsock`, with a listener example), so if
+  it is wanted it is "test the existing driver on VZ", not new driver work.
+  It was not tested here (runbook: no vsock work).
+- **Is an EFI wrapper needed?** No. The loader boots directly as an arm64
+  Linux Image.
+- **MMIO or PCI?** PCI. VZ puts every virtio device on a
+  `pci-host-ecam-generic` bus, which Hermit's default `pci` feature already
+  matches.
+
+## Recommended VZ path for `relay-hermit`
+
+1. **Boot:** the loader's `aarch64-vz` target (an arm64 Image), with the
+   relay as the initrd, booted by `VZLinuxBootLoader`. `vzrun/` is the
+   harness, kept for the VZ test runner.
+2. **Upstream and claim:** one virtio-net device on `VZNATNetworkDeviceAttachment`
+   (DHCP, egress and host → relay all verified). Warden claims the relay at
+   its NAT address; warden's terminal or agent needs Local Network permission.
+3. **Build link (sibling build VM ↔ relay):** a file-handle socketpair
+   between the two VMs (`VZFileHandleNetworkDeviceAttachment`), as the main
+   repo's vz driver does today for its host relay. Not tested VM-to-VM here.
+   It needs a **second NIC in the relay**, which stock Hermit cannot drive
+   (finding 1 below), so this item depends on Question 1.
+
+## Patches
+
+All four patches are in `patches/`. `make patched` applies the two fix
+patches to fresh clones.
+
+### Loader: `patches/loader-v0.5.7-vz.patch`, a new `aarch64-vz` target
+
+| Gap | Fix |
+|---|---|
+| No arm64 Image header; VZ refuses the ELF and the flat binary | `head.s`: the 64-byte header (branch, `image_size` including `.bss`, flags, `ARM\x64`); `link-vz.ld` places it first at `0x7000_0000` |
+| Linked at `0x4040_0000`, which on VZ is the PCI ECAM window | `link-vz.ld` links at VZ's RAM base; the page tables' identity map follows `RAM_START` (`0x7000_0000` under the `vz` feature) |
+| DTB hardcoded at `0x4000_0000`, and `entry.s` clobbers `x0` | `entry.s` saves `x0` (the Linux protocol's DTB pointer) first thing |
+| The kernel reads the DTB in place, and VZ's sits near the top of RAM, unmapped and unreserved | The loader copies the DTB to just below the kernel: mapped, and inside the region the kernel reserves |
+| Console falls back to PL011 `0x0900_0000`; one store there kills a VZ VM | A null console when the DT names no UART and has no PL011; the kernel then gets no serial port |
+| App via `/chosen linux,initrd-*` | Already upstream (`find_linux_initrd`) |
+
+The generic parts (`x0`, DTB copy, null console) also run on Qemu, where they
+pass the regression checks. The fixed link address is VZ-only; a PIE loader
+that relocates itself would serve both targets and is the upstreamable form.
+
+### Kernel: `patches/kernel-v0.13.2-vz.patch`
+
+Each fix was needed on VZ. They are listed in the order the boot hit them:
+
+| # | Symptom on VZ | Cause | Fix |
+|---|---|---|---|
+| 1 | Silent hang right after the loader | `processor::configure` writes PMU registers; VZ exposes no PMU, so the access is UNDEFINED | Skip when `ID_AA64DFR0_EL1.PMUVer` is 0 or 0xF |
+| 2 | Panic in memory init | `env::is_uefi` calls `fdt.root().compatible()`, which unwraps; VZ's root node has no `compatible` | Read it fallibly |
+| 3 | Panic in interrupt init | GIC found by Qemu's node name `/intc`; VZ names it `gic` | Find by `compatible` (`arm,gic-v3`/`v4`) |
+| 4 | Any print faults (no UART) | The kernel always builds a PL011 from `serial_port_base` | No UART when the loader passes none; output goes to a 16 KiB early buffer |
+| 5 | Early boot log lost | The console driver is unreachable (`PCI_DRIVERS` not finalized) while PCI init runs | Buffer until the virtio console can write, then replay |
+| 6 | Panic on replay | A write of 8 KiB or more trips `send_packet`'s size assertion (an upstream bug on every platform) | Short writes of one packet; `write_all` loops |
+| 7 | **Console and net queues configured, kicked, never used** | Hermit does not wait after resetting a virtio device. VZ resets asynchronously, so the late reset discards the queue setup | Wait for `device_status` to read 0, as the spec requires (v1.2 §4.1.4.3.2). Bisected: without it the console stays silent |
+| 8 | virtio-net rejected (`NoDevCfg`) | VZ's net device config is 17 of 24 bytes (only offered features' fields); Hermit demands the full struct | Accept a short config when the BAR holds the struct |
+| 9 | virtio-net `FEATURES_OK` refused | VZ refuses `CSUM` without `GUEST_CSUM` (Hermit can't do `GUEST_CSUM`), and requires `MTU` (Hermit asks for it) | Retry once without `CSUM`. Also stop requesting `RING_PACKED`: VZ never uses Hermit's packed queues (split queues work). The root cause is open, on Hermit's or VZ's side |
+
+### Boot tracing (debugging only)
+
+`patches/loader-vz-checkpoints.patch` and `patches/kernel-vz-tracing-wip.patch`
+are the tools that found the kernel bugs, on a machine where the guest cannot
+print. Applied on top of the fix patches, they turn bootargs into one-bit
+questions answered by whether the guest powers off (PSCI `SYSTEM_OFF`) or
+times out:
+- `vzstop=N`: did boot reach checkpoint N?
+- `vzhold`: turns a normal shutdown into a spin, so only an answer stops the VM.
+- `vzpl=K` / `vzpf=SUB`: panic line bit K / panic file contains SUB.
+- `vzbit=K`: device feature bit K.
+- `vznetfeat=MASK`: override the requested net features.
+
+`vz-trace.sh` drives them. The tracing patch is a work-in-progress snapshot
+with dead ends in it; it is not meant to be merged.
+
+## What VZ looks like to a guest
+
+From VZ's own device tree (`evidence/vz.dts`), `/proc/iomem` and PCI config
+dumps, captured with a Linux probe guest (`probe/`):
+
+| Thing | VZ | Qemu `virt` (Hermit's assumptions) |
+|---|---|---|
+| RAM | `0x7000_0000` | `0x4000_0000` |
+| `0x4000_0000` | PCI ECAM, 256 MB | RAM; DTB for ELF kernels |
+| DTB | in `x0`, near the top of RAM, no `/memreserve/` | `0x4000_0000` |
+| Root node | no `compatible`; `apple,virtualization-generic-platform` in a child | `linux,dummy-virt` |
+| UART | none; a store to an unbacked address stops the VM | PL011 `0x0900_0000` |
+| GIC | GICv3 node `gic`, GICD `0x1000_0000`, no ITS | node `intc` |
+| PMU | none | present |
+| Virtio | PCI; the regions in 64-bit BAR0 (common, ISR `+0x1000`, notify `+0x4000` with multiplier 4, device `+0x8000`); MSI-X table in BAR2; INTx | MMIO or PCI |
+| virtio-console features | `INDIRECT_DESC EVENT_IDX VERSION_1 RING_PACKED`, no `MULTIPORT` | |
+| virtio-net features | `CSUM GUEST_CSUM MTU MAC GUEST_TSO4/6 HOST_TSO4/6 STATUS INDIRECT_DESC EVENT_IDX VERSION_1 RING_PACKED` | |
+| Reset | asynchronous | synchronous |
+| CPU `rng` (FEAT_RNG) | absent | host-dependent |
+| NAT | `192.168.64.0/24` via `bridge100`; `PRIVATE` member ports; DHCP and DNS on `.1` | |
+
+## Findings for M3 and beyond (not VZ-specific)
+
+1. **One NIC.** Hermit's network stack takes a single global
+   `NETWORK_DEVICE` into one smoltcp `Interface`, and sockets bind to it
+   implicitly. The relay needs two: the build link and upstream (the main
+   repo's `relay-vm/init` uses `eth0` and `eth1`). In host mode the Go relay
+   also reads raw Ethernet frames off the build link. Neither fits stock
+   Hermit on any hypervisor. This is a design decision (Question 1).
+2. **No real entropy on aarch64.** `seed_entropy()` is a stub returning
+   `None` there, and the kernel has no virtio-rng driver. `sys_read_entropy`,
+   which promises cryptographically secure bytes, then falls back silently to
+   a 31-bit Park–Miller–Lehmer generator seeded from the boot timestamp. The
+   only sign is the log line `Unable to read entropy! Fallback to a naive
+   implementation!`. Any TLS key a relay generates on aarch64 Hermit is
+   effectively guessable. Needed: a virtio-rng driver (VZ, Qemu and
+   Firecracker all offer the device; VZ's is `00:06.0`), `RNDR` where the CPU
+   has it, and a fallback that fails closed. Upstreamable.
+3. **Packed virtqueues** do not work on VZ (patch row 9); split queues do.
+   Unexplained; worth an upstream issue before relying on packed rings.
+4. Upstream nightly `nightly-2026-11-01` builds a loader that hangs
+   mid-print on Qemu; `nightly-2026-08-15` (near the loader release) works.
+
+## Attempts, in order
 
 | # | Attempt | Outcome |
 |---|---|---|
-| 0.1 | Toolchain | rustup (Homebrew) + `nightly-2026-02-01` with `rust-src`, `llvm-tools`; QEMU 11.1.1 present; vfkit 0.6.4 installed. |
-| 0.2–0.3 | Build loader and `hello_world` from source | **Blocked**: the session's permission policy refused to run the upstream build (`cargo xtask` / `build.rs` count as executing external code). Not attempted further. |
-| 0.4 | QEMU/HVF baseline, **stock** release loader v0.5.7 + the loader repo's `hello_world` test fixture (LFS, sha256-pinned) | **Pass.** Loader banner, `Welcome to Hermit 0.6.9`, "A pure Rust application is running on top of Hermit!", clean exit. `evidence/qemu-baseline.log`. Note the fixture's kernel is 0.6.9, not the 0.13.2 pin. |
-| A.1 | Loader ELF as VZ kernel (vfkit) | vfkit refuses before VZ: `kernel must be uncompressed, … is a compressed file` (it treats any arm64 file without the Image magic as compressed). |
-| A.1 | Loader ELF as VZ kernel (`vzrun`, the Swift harness) | `VZErrorDomain Code=1 "The virtual machine failed to start." (Internal Virtualization error)`. |
-| A.2 | `objcopy -O binary` loader (vfkit / `vzrun`) | First 64 bytes are rodata; **no `ARM\x64` magic at offset 56**, and `_start` is at `0x40415e38`, not offset 0. vfkit: same refusal. `vzrun`: same `Internal Virtualization error`. |
-| A.3 | Arm64 Image header | Not applied to the loader (needs a build). Verified on VZ with hand-built header stubs instead (next rows). |
-| stub `control` | Minimal valid Image header + PSCI `SYSTEM_OFF` | **Guest stopped cleanly**: VZ accepts a 64-byte-header Image, runs it, and PSCI over `hvc` works. |
-| stub `spin` | Header + WFE loop (negative control) | Timed out, as it should. |
-| stub `dtb` | Power off iff `[x0]` holds the FDT magic | **Stopped**: VZ passes the DTB pointer in **x0** (Linux protocol). |
-| stub `ecam` | Same test at `0x40000000`, where the stock loader reads the DTB | **Timed out**: no FDT there. On VZ that address is the PCI ECAM window. |
-| stub `pc` | Power off iff the code runs at `0x7xxxxxxx` | **Stopped**: VZ loads the image in its RAM at `0x70000000+`. |
-| stub `uart` | One 32-bit store to `0x09000000` (QEMU virt's PL011), then power off | **VM dies**: `Internal Virtualization error`, 3/3 runs. A store to an unbacked MMIO address is fatal on VZ. This also makes A.1/A.2's identical error ambiguous: VZ may have loaded those files and the garbage at offset 0 faulted. |
-| A.4–A.5 | Console check, initrd handoff, Hello World on VZ | Not reached (needs the patched loader). |
-| B (Linux probe) | Stock arm64 Linux (`relay-vm`'s Alpine `Image`) + `probe/init`, under vfkit NAT | Device tree, memory map and transport captured (`evidence/vz.dts`, `evidence/probe-host.log`). Lease `192.168.64.x/24` from `192.168.64.1`, lease 3600 s, DNS `192.168.64.1`. |
-| B.3 host→guest | `nc` from the host to the guest's echo server | **Untested**: every LAN address, the home router included, is `No route to host` from this session. That's macOS Local Network privacy on the app running the session, not VZ. **Needs one run from your Terminal** (below). |
-| B sibling | Second probe VM connects to the first over NAT | **Fails at layer 2**: ARP for the peer stays `INCOMPLETE`. Both `vmenet` ports sit on `bridge100` flagged **`PRIVATE`**, so the bridge does not forward between them (`evidence/sibling-bridge.txt`, `evidence/sibling-client.log`). |
-| B egress | Guest → internet through NAT | **Works**: ICMP to 1.1.1.1, DNS via 192.168.64.1, HTTP fetch of example.com. |
-| B Hermit | Hermit networking demo under VZ | Not reached (needs Stage A). |
-
-## The VZ machine, as a guest sees it
-
-From `evidence/vz.dts` (VZ's own device tree, read back through
-`/sys/firmware/fdt`) and `/proc/iomem`, 1 vCPU, 512 MB:
-
-| Thing | VZ | QEMU `virt` (what Hermit assumes) |
-|---|---|---|
-| RAM base | `0x7000_0000` | `0x4000_0000` |
-| `0x4000_0000` | PCI ECAM (`pci-host-ecam-generic`, 256 MB) | RAM; QEMU puts the DTB here for ELF kernels |
-| DTB location | passed in `x0`, near the top of RAM | `0x4000_0000` |
-| Kernel load | RAM base + `text_offset` (`0x7000_0000` for Linux) | ELF segments at their link address |
-| UART | **none** (no PL011 node, no `stdout-path`) | PL011 at `0x0900_0000` |
-| Console | virtio-console over PCI (`hvc0`) | PL011 |
-| Virtio transport | **PCI**: net `00:01.0`, console `00:05.0`, rng `00:06.0`; BARs in the 64-bit window at `0x1_0000_0000` | MMIO or PCI |
-| GIC | GICv3, GICD `0x1000_0000`, GICR `0x1001_0000` | GICv3 |
-| PSCI | 0.2 via `hvc` | same |
-| `/chosen` | `bootargs`, `kaslr-seed`, `linux,initrd-start/end` | `module@` nodes from `guest-loader` |
-| CPU `rng` (FEAT_RNG) | **absent** | host-dependent |
-| Other | PL031 RTC, PL061 GPIO (power key) | |
-
-## Stage A patch list
-
-### Loader (`hermit-os/loader`, aarch64)
-
-| # | Gap | Evidence | Patch |
-|---|---|---|---|
-| L1 | No arm64 Image header | A.2 `xxd`; stub `control` | Put the 64-byte header at the start of the flat image (`b` past it, `text_offset 0`, `image_size`, flags `0b1010`, magic at 56) and make `_start` follow it. About 20 lines of asm plus a linker-script section at the front. Upstreamable. |
-| L2 | DTB read from a hardcoded `0x4000_0000` (`DEVICE_TREE`), and `entry.s` clobbers `x0` on its second instruction | stubs `dtb`, `ecam`; `src/arch/aarch64/{entry.s,mod.rs}` | Save `x0` in `_start` before anything else and use it for every `Fdt::from_ptr`. Keep `0x4000_0000` only as a QEMU fallback when `x0` is 0. Small; upstreamable (it's the Linux boot protocol). |
-| L3 | Statically linked at `0x4040_0000` (`-Crelocation-model=static`, `--image-base`) | ELF headers; stub `pc` | Either build PIE and self-apply `R_AARCH64_RELATIVE` at entry (about 50 lines, any load address, upstreamable), or link at `0x7000_0000` for a VZ-only build (trivial, not upstreamable). Recommend PIE. |
-| L4 | Console is PL011 or Xilinx only, falling back to `0x0900_0000` when the DT names none | stub `uart` (fatal on VZ); `src/arch/aarch64/console.rs` | When the DT has no `stdout-path` and no `arm,pl011`, use a null console instead of the fallback address. The loader is then silent on VZ, and `boot_info.serial_port_base` must be `None` for the kernel (K1). A virtio-console in the loader is not worth it. |
-| L5 | App via `/chosen linux,initrd-*` | `src/fdt_ext.rs` `find_linux_initrd` | **Already upstream** (`find_kernel` falls back to it). The runbook's second gap is closed, provided L2 lets the loader find the DT. |
-
-### Kernel (`hermit-os/kernel`, aarch64)
-
-| # | Gap | Evidence | Patch |
-|---|---|---|---|
-| K1 | Early console is PL011 at `serial_port_base`, which the loader always sets (`0x1000` → UART) | `src/arch/aarch64/kernel/serial.rs`, `src/console.rs` | Make the UART device optional when `serial_port_base` is `None`: drop output until virtio-console attaches, or buffer and replay it. Small. |
-| K2 | virtio-console is not a default feature | `Cargo.toml` | Build with `virtio-console` (it already supports PCI and replaces the UART once up). Config only. |
-| K3 | `seed_entropy()` returns `None` on aarch64, so `getrandom` returns `ENOSYS`; no virtio-rng driver exists | `src/arch/aarch64/kernel/processor.rs`, `src/entropy.rs`, `src/drivers/` | A virtio-rng PCI driver modeled on the console driver (one queue, about 200–300 lines), seeding the ChaCha pool; optionally `RNDR` where FEAT_RNG exists (not on VZ). **Needed on every aarch64 target**, QEMU included. Without it, TLS keys and HashMap seeds have no entropy. Upstreamable. |
-
-Already fine on VZ from the source: GICv3 and PSCI come from the DT; PCI ECAM
-generic is supported and VZ's `ranges` supply the IO, mem32 and mem64 windows
-its asserts need; virtio-net, virtio-console and virtio-vsock all have PCI
-transports, and `pci` is a default feature. So the runbook's "set the
-transport feature to MMIO" step is unnecessary: stock is already right.
-
-## Is NAT enough?
-
-**No, not for Decision 1 as written (host plus sibling build VMs). NAT is
-enough for the relay's upstream egress, and probably for host→relay, but VZ
-NAT isolates VMs from each other.**
-
-- **Sibling → relay over NAT: impossible on this macOS.** Each VM's `vmenet`
-  port on `bridge100` is `PRIVATE`; ARP between them never completes. A
-  port forward does not help, because VZ NAT has no port-forward API and the
-  block is layer 2.
-- **Host → relay over NAT: very likely works, unverified.** Guests reach the
-  host's bridge address (ping to `192.168.64.1` succeeds), and the isolation
-  is between members only. The test couldn't run from this session because
-  of Local Network privacy. That same privacy gate applies to `warden`: a
-  claim over NAT needs Local Network permission for whatever launches warden.
-  That's a risk for the nightly launchd agent, which can't answer the prompt.
-- **Relay → internet over NAT: works** (DHCP, DNS, ICMP, TCP measured).
-- **Bridged networking is not needed**, and no entitlement beyond
-  `com.apple.security.virtualization` is.
-
-### Recommended VZ path for `relay-hermit`
-
-Keep each link where VZ already supports it, without NAT between VMs:
-
-1. **Build link (build VM ↔ relay VM): a file-handle socketpair**, exactly as
-   the vz driver does today for the host relay. Warden creates the pair and
-   gives one end to each VM's `VZFileHandleNetworkDeviceAttachment`. No NAT,
-   no entitlement, no Local Network permission. (Not tested VM-to-VM here.)
-2. **Claim and collector (warden → relay): virtio-vsock**, not NAT. Hermit
-   already ships a virtio-vsock PCI driver with a listener example
-   (`VsockListener::bind`), the same shape as the claim (the relay listens,
-   the host dials, the relay never dials out). VZ's `VZVirtioSocketDevice` is
-   virtio-vsock over PCI. So the kickoff's Stage C ("new driver work, 1–2
-   weeks") is probably "verify an existing driver on VZ": days. It also
-   removes the Local Network permission problem. NAT host→guest stays the
-   fallback if the vsock driver doesn't hold up.
-3. **Upstream (relay → internet): VZ NAT.** Verified.
-
-This needs the relay to have **two network interfaces**, the build link and
-upstream, and stock Hermit has one (next section).
-
-## Findings that reach past VZ (input to M3)
-
-1. **Hermit drives a single NIC.** One global `NETWORK_DEVICE` is taken
-   into one smoltcp `Interface` (`src/executor/{device,network}.rs`), and
-   sockets bind to that NIC. Today's relay VM uses two (`relay-vm/init`:
-   `eth0` build link, `eth1` upstream), and in host mode the Go relay reads
-   raw Ethernet frames off the build link. Neither fits stock Hermit on any
-   hypervisor (Firecracker and QEMU too). Options: a multi-NIC kernel patch
-   (moderate; smoltcp itself supports several interfaces), giving the relay
-   app raw-frame access to a second virtio-net device, or a different
-   topology (for example upstream carried over vsock by a host-side dialer,
-   which changes who opens upstream connections). **This is a design
-   decision for you, not the spike** (Question 1).
-2. **No entropy on aarch64 Hermit** (K3). This blocks TLS on any aarch64
-   host.
-3. **Hermit's MMIO probing walks `/virtio_mmio` nodes only** and its vsock
-   driver is PCI-only. Neither matters on VZ (PCI everywhere), but both
-   matter for Firecracker on aarch64 (MMIO).
-
-## What could not run
-
-- **Building Hermit (loader and app) from source.** The session's permission
-  policy blocks running upstream build scripts. To get past this, allow it,
-  or run `make loader hello qemu` yourself. The Makefile and the patch list
-  are ready for it.
-- **Host→guest TCP.** This session's app lacks macOS Local Network
-  permission. From a Terminal that has it:
-
-  ```bash
-  cd ~/src/buildwarden-relay/spike && make probe && cat out/echo-test.log
-  ```
-
-  `echo-test: … got 'echo-test …'` matching what was sent means host→guest
-  works over plain NAT.
+| 0 | Qemu/HVF baseline, stock loader + stock app | Pass (`evidence/qemu-baseline.log`) |
+| 0 | Qemu/HVF baseline from source | Pass with `nightly-2026-08-15` for the loader; hang with `nightly-2026-11-01` |
+| A.1/A.2 | Stock loader ELF / flat binary on VZ | vfkit refuses both ("kernel must be uncompressed"); VZ via `vzrun`: `Internal Virtualization error` |
+| A stubs | Hand-built Image stubs (`stub/`) | VZ accepts a minimal header; DTB in `x0`; code runs at `0x7xxxxxxx`; `0x4000_0000` holds no FDT; a PL011 store kills the VM |
+| A.3–A.4 | Patched loader on VZ | Loader runs end to end (checkpoints 1–8); kernel then hits fixes 1–6 in turn |
+| A.5 | Console silent with the kernel booting fully | Probed the device: status `0xF`, features, notify address, command register `0x6`: all correct. VZ never consumed a descriptor. Bisected to the missing reset wait (fix 7) |
+| B | virtio-net on VZ | Fixes 8 and 9, then packed queues dead; on split queues, DHCP lease and host → guest echo |
+| B (Linux) | Linux probe on VZ NAT | DHCP, DNS, ICMP and TCP egress work; sibling VMs isolated at layer 2 |
 
 ## Judgement calls made unattended
 
-1. **Spike location**: `spike/` on branch `spike/vz-hermit` in
-   `buildwarden/buildwarden-relay` (the repo was empty apart from its
-   template). Upstream checkouts and downloads go in `spike/.work/`
-   (git-ignored), never committed.
-2. **Build-std over `rust-std-hermit`**: the template now uses a stable
-   toolchain plus a prebuilt Hermit std installed by a downloaded script. I
-   kept the runbook's `-Zbuild-std` on hermit-rs's pinned nightly instead, so
-   nothing downloaded runs on the host.
-3. **Stock release artifacts where the build was blocked**: the loader
-   v0.5.7 release binary (`gh release download`) and its `hello_world` test
-   fixture (Git LFS), both sha256-pinned in the Makefile. They run only as
-   guests inside QEMU/VZ.
-4. **A Linux probe guest** to measure VZ's machine model, using the main
-   repo's own `relay-vm` kernel, modules and busybox, plus a probe init
-   written here. The runbook says "verify, do not assume"; this verifies the
-   VZ side without needing Hermit.
-5. **Hand-built Image stubs** (`stub/mkstub.py`, A64 hand-encoded and checked
-   with `llvm-objdump`) to test the boot protocol where the patched loader
-   would have.
-6. **The Swift harness (`vzrun/`) was written** because vfkit refuses
-   non-Image kernels (the runbook's Option 2 trigger). It is ad-hoc signed
-   with the ordinary virtualization entitlement and kept as the future VZ
-   test runner, per the runbook.
-7. **Two sandbox escapes** for host-network tests only (ping/nc to the vmnet
-   bridge and the VM runs that use it), to tell the session sandbox apart
-   from Local Network privacy. They showed it was the latter.
-8. **Stopped at the runbook's boundaries**: no vsock work, no relay code,
-   no bridged networking, no entitlement requests. No upstream patches were
-   written, because they couldn't be built or tested here.
+1. **Location:** `spike/` on branch `spike/vz-hermit` in
+   `buildwarden/buildwarden-relay`, with a draft PR. Upstream clones and
+   downloads go in `spike/.work/` (git-ignored); the changes to them are
+   committed here as patches. Nothing has been sent upstream to hermit-os
+   (Question 3).
+2. **Toolchains:** hermit-rs's pinned nightly for apps; a second, older
+   nightly for the loader (see finding 4). Both are pinned in the Makefile.
+3. **Stock artifacts** (the loader release binary and its LFS test fixture,
+   sha256-pinned) for the unpatched attempts; they run only as guests.
+4. **Linux probe guest** built from the main repo's `relay-vm` kernel,
+   modules and busybox, to measure VZ without Hermit.
+5. **The kernel is consumed via `HERMIT_MANIFEST_DIR`** (the hermit crate's
+   hook for an out-of-tree kernel), so hermit-rs itself is unmodified.
+6. **Two own apps** (`apps/hello-vz`, `apps/echo-vz`) in place of upstream
+   examples. `hello-vz` waits before exiting; `echo-vz` is the 20-line echo
+   server from the runbook.
+7. **Removed what did not help:** speculative changes (an explicit MSI-X
+   vector, packed rings for the console, always writing `queue_size`,
+   filling RX after `DRIVER_OK`) were tested, did not help, and are not in
+   the fix patch. The two that are bisect-proven unnecessary are noted here
+   so nobody re-adds them as the fix.
+8. **Sandbox:** host-network tests (pings, `nc` to the NAT address, the VZ
+   runs that use them) ran outside this session's sandbox, after you allowed
+   Local Network access.
+9. **Stopped at the runbook's boundaries:** no relay code, no vsock work, no
+   bridged networking, no entitlement requests. The private VZ GDB stub was
+   tried for debugging and refused (it needs a private entitlement); it is
+   not used.
 
 ## Questions for you
 
-1. **Relay topology on Hermit** (from the single-NIC finding): multi-NIC
-   kernel patch, raw-frame second NIC, or a different upstream path? This
-   decides M3's scope on every hypervisor, so it's worth settling before M3.
-2. **Decision 1 revisited**: sibling build VMs can't reach a relay over VZ
-   NAT. Is the socketpair build link (as today) the intended sibling path?
-   And is vsock acceptable as the claim and collector transport on VZ? It
-   would be the one place the Rust relay's transport differs from the claim
-   over TCP (GLOBAL-08's seam is the protocol, not the transport, but worth
-   your call).
-3. **Unblock the build**: allow upstream builds in an unattended session, or
-   run `make loader hello qemu` and the Stage A patches by hand?
+1. **The relay's second NIC on Hermit.** Options: patch the kernel for
+   several interfaces (moderate; smoltcp supports it, Hermit's socket layer
+   assumes one); expose a second virtio-net device to the relay as raw
+   frames; or change the topology, for example carrying upstream over vsock
+   through a host-side dialer, which changes who opens upstream connections.
+   This sets M3's scope on every hypervisor.
+2. **Entropy.** Is a virtio-rng driver plus a fail-closed fallback in M3's
+   scope, ahead of anything that does TLS on aarch64?
+3. **Upstreaming.** May I open issues and PRs on `hermit-os/kernel`
+   (fixes 1–9 and the entropy and packed-ring issues) and `hermit-os/loader`
+   (`aarch64-vz`, ideally as a PIE loader)? Until they land, the patches stay
+   here (see "Carrying the patches").
+4. **Warden's Local Network permission** for claiming over NAT, versus vsock
+   for the claim. The nightly launchd agent cannot answer the macOS prompt.
 
-## Next steps to close the exit criteria
+## Carrying the patches
 
-1. Build from source (`make loader hello qemu`); confirm the baseline on the
-   0.13.2 kernel.
-2. Loader branch with L1–L4; kernel branch with K1–K2 (and K3 if Stage B
-   needs DHCP randomness). Then rerun `vz-stock` with the patched loader and
-   `--cmdline` empty: exit criterion A.
-3. `hermit-rs` networking demo (`examples/testtcp` or `httpd`), default `pci`
-   feature, under `vzrun` with NAT; `make probe` from Terminal for host→guest:
-   exit criterion B. Then the vsock example under VZ, recording only whether
-   it works (no driver work, per the runbook).
+No GitHub fork of Hermit is needed to use them. The kernel is built by the
+`hermit` crate from any checkout named by `HERMIT_MANIFEST_DIR`. The loader
+is a separate binary the relay image ships anyway. A pinned tag plus a patch
+file per component (as here) keeps Decision 17's one-place version bump. If
+upstream is slow, the next step up is a `buildwarden/hermit-kernel` branch
+consumed through Cargo's `[patch]`. Still no long-lived fork.
 
 ## Files
 
 | Path | What |
 |---|---|
-| `Makefile` | Every step above; `make all` reruns everything runnable here. |
-| `vzrun/` | Swift VZ runner and its entitlements. |
-| `stub/mkstub.py` | Boot-protocol stub images. |
-| `probe/` | Linux probe init, host echo test, sibling test. |
-| `evidence/` | Captured device tree, probe logs, bridge state, QEMU baseline. |
+| `Makefile` | `make checks` builds everything from the pinned tags plus patches and runs the checks; `stock`, `vz-stock`, `stubs`, `probe`, `probe-sibling` rerun the earlier experiments |
+| `checks.sh` | The five checks |
+| `patches/` | Loader and kernel fixes; boot-tracing patches |
+| `apps/` | `hello-vz` (Stage A), `echo-vz` (Stage B) |
+| `vzrun/` | Swift VZ runner (Linux boot loader, virtio console to a file, NAT, optional fixed MAC) |
+| `vz-trace.sh` | Boot tracing driver |
+| `stub/mkstub.py` | Boot-protocol stub images |
+| `probe/` | Linux probe guest: init, host echo test, sibling test |
+| `evidence/` | VZ device tree, probe logs, bridge state, console logs, check results |

@@ -1,0 +1,355 @@
+diff --git a/src/arch/aarch64/kernel/interrupts.rs b/src/arch/aarch64/kernel/interrupts.rs
+index ac20ff9..1e087d7 100644
+--- a/src/arch/aarch64/kernel/interrupts.rs
++++ b/src/arch/aarch64/kernel/interrupts.rs
+@@ -275,7 +275,12 @@ pub(crate) fn init() {
+ 
+ 	let fdt = env::fdt().unwrap();
+ 
+-	let intc_node = fdt.find_node("/intc").unwrap();
++	// By compatible, not by name: Qemu names the node `intc`, Apple's
++	// Virtualization framework `gic`.
++	let intc_node = fdt
++		.find_compatible(&["arm,gic-v3", "arm,gic-v4"])
++		.or_else(|| fdt.find_node("/intc"))
++		.unwrap();
+ 	let mut reg_iter = intc_node.reg().unwrap();
+ 	let gicd_reg = reg_iter.next().unwrap();
+ 	let gicr_reg = reg_iter.next().unwrap();
+diff --git a/src/arch/aarch64/kernel/processor.rs b/src/arch/aarch64/kernel/processor.rs
+index b1580b8..6fa7493 100644
+--- a/src/arch/aarch64/kernel/processor.rs
++++ b/src/arch/aarch64/kernel/processor.rs
+@@ -259,6 +259,17 @@ pub fn supports_2mib_pages() -> bool {
+ }
+ 
+ pub fn configure() {
++	// The PMU registers below are UNDEFINED without a PMU, and some
++	// hypervisors (Apple's Virtualization framework) expose none: the first
++	// access would take an exception before any console exists.
++	// PMUVer 0b0000 is "not implemented", 0b1111 an IMPLEMENTATION DEFINED
++	// PMU without the architected registers.
++	let pmu_ver = ID_AA64DFR0_EL1.read(ID_AA64DFR0_EL1::PMUVer);
++	if pmu_ver == 0 || pmu_ver == 0xf {
++		debug!("No architected PMU (PMUVer {pmu_ver:#x}), skipping PMU setup");
++		return;
++	}
++
+ 	// TODO: PMCCNTR_EL0 is the best replacement for RDTSC on AArch64.
+ 	// However, this test code showed that it's apparently not supported under uhyve yet.
+ 	// Finish the boot loader for QEMU first and then run this code under QEMU, where it should be supported.
+diff --git a/src/arch/aarch64/kernel/serial.rs b/src/arch/aarch64/kernel/serial.rs
+index efb0fa3..dbcc780 100644
+--- a/src/arch/aarch64/kernel/serial.rs
++++ b/src/arch/aarch64/kernel/serial.rs
+@@ -8,20 +8,61 @@ use hermit_sync::{InterruptTicketMutex, Lazy};
+ 
+ use crate::errno::Errno;
+ 
+-static UART_DEVICE: Lazy<InterruptTicketMutex<UartDevice>> =
++/// The PL011, or `None` when the loader passed no serial port: some
++/// hypervisors (Apple's Virtualization framework) have no UART, and a store
++/// to an unbacked address stops the VM.
++static UART_DEVICE: Lazy<InterruptTicketMutex<Option<UartDevice>>> =
+ 	Lazy::new(|| InterruptTicketMutex::new(UartDevice::new()));
+ 
++/// Output written while there is no UART, kept until a virtio console takes
++/// over (see [`take_early_output`]). Output past its capacity is dropped.
++static EARLY_OUTPUT: InterruptTicketMutex<EarlyOutput> =
++	InterruptTicketMutex::new(EarlyOutput::new());
++
++struct EarlyOutput {
++	buf: [u8; Self::CAPACITY],
++	len: usize,
++}
++
++impl EarlyOutput {
++	const CAPACITY: usize = 16 * 1024;
++
++	const fn new() -> Self {
++		Self {
++			buf: [0; Self::CAPACITY],
++			len: 0,
++		}
++	}
++
++	fn push(&mut self, bytes: &[u8]) {
++		let n = bytes.len().min(Self::CAPACITY - self.len);
++		self.buf[self.len..self.len + n].copy_from_slice(&bytes[..n]);
++		self.len += n;
++	}
++}
++
++/// Keeps `bytes` for a console that cannot write yet.
++pub(crate) fn push_early_output(bytes: &[u8]) {
++	EARLY_OUTPUT.lock().push(bytes);
++}
++
++/// Hands `f` the output written before any console device could write it,
++/// then discards it. Called by the virtio console's first working write.
++pub(crate) fn take_early_output(f: impl FnOnce(&[u8])) {
++	let mut early = EARLY_OUTPUT.lock();
++	let len = early.len;
++	f(&early.buf[..len]);
++	early.len = 0;
++}
++
+ pub(crate) struct UartDevice {
+ 	uart: Uart<'static>,
+ 	buffer: VecDeque<u8>,
+ }
+ 
+ impl UartDevice {
+-	pub fn new() -> Self {
+-		let base = crate::env::boot_info()
+-			.hardware_info
+-			.serial_port_base
+-			.unwrap();
++	pub fn new() -> Option<Self> {
++		let base = crate::env::boot_info().hardware_info.serial_port_base?;
+ 		let base = NonZero::try_from(base).unwrap();
+ 		let base = NonNull::with_exposed_provenance(base);
+ 
+@@ -39,10 +80,10 @@ impl UartDevice {
+ 		uart.set_interrupt_masks(Interrupts::RXI | Interrupts::RTI);
+ 		uart.clear_interrupts(Interrupts::all());
+ 
+-		Self {
++		Some(Self {
+ 			uart,
+ 			buffer: VecDeque::new(),
+-		}
++		})
+ 	}
+ }
+ 
+@@ -60,13 +101,19 @@ impl ErrorType for SerialDevice {
+ 
+ impl Read for SerialDevice {
+ 	fn read(&mut self, buf: &mut [u8]) -> Result<usize, Self::Error> {
+-		Ok(UART_DEVICE.lock().buffer.read(buf)?)
++		match UART_DEVICE.lock().as_mut() {
++			Some(device) => Ok(device.buffer.read(buf)?),
++			None => Ok(0),
++		}
+ 	}
+ }
+ 
+ impl ReadReady for SerialDevice {
+ 	fn read_ready(&mut self) -> Result<bool, Self::Error> {
+-		Ok(!UART_DEVICE.lock().buffer.is_empty())
++		Ok(UART_DEVICE
++			.lock()
++			.as_ref()
++			.is_some_and(|device| !device.buffer.is_empty()))
+ 	}
+ }
+ 
+@@ -74,8 +121,13 @@ impl Write for SerialDevice {
+ 	fn write(&mut self, buf: &[u8]) -> Result<usize, Self::Error> {
+ 		let mut guard = UART_DEVICE.lock();
+ 
+-		for byte in buf {
+-			guard.uart.write_word(*byte);
++		match guard.as_mut() {
++			Some(device) => {
++				for byte in buf {
++					device.uart.write_word(*byte);
++				}
++			}
++			None => push_early_output(buf),
+ 		}
+ 
+ 		Ok(buf.len())
+@@ -88,17 +140,20 @@ impl Write for SerialDevice {
+ 
+ pub(crate) fn handle_uart_interrupt() {
+ 	let mut guard = UART_DEVICE.lock();
++	let Some(device) = guard.as_mut() else {
++		return;
++	};
+ 
+-	while let Ok(Some(mut byte)) = guard.uart.read_word() {
++	while let Ok(Some(mut byte)) = device.uart.read_word() {
+ 		// Normalize CR to LF
+ 		if byte == b'\r' {
+ 			byte = b'\n';
+ 		}
+ 
+-		guard.buffer.push_back(byte);
++		device.buffer.push_back(byte);
+ 	}
+ 
+-	guard
++	device
+ 		.uart
+ 		.clear_interrupts(Interrupts::RXI | Interrupts::RTI);
+ 
+diff --git a/src/drivers/console/mod.rs b/src/drivers/console/mod.rs
+index 6cef715..e143b2e 100644
+--- a/src/drivers/console/mod.rs
++++ b/src/drivers/console/mod.rs
+@@ -101,6 +101,25 @@ impl ReadReady for VirtioUART {
+ 
+ impl Write for VirtioUART {
+ 	fn write(&mut self, buf: &[u8]) -> Result<usize, Self::Error> {
++		// The console replaces the UART while the drivers are still being
++		// registered, before get_console_driver can find it. Keep that output
++		// with the early output and send it all with the first write that can.
++		#[cfg(target_arch = "aarch64")]
++		{
++			use crate::arch::kernel::serial::{push_early_output, take_early_output};
++
++			let Some(drv) = get_console_driver() else {
++				push_early_output(buf);
++				return Ok(buf.len());
++			};
++			let mut drv = drv.lock();
++			let mut result = Ok(());
++			take_early_output(|early| result = drv.write_all(early));
++			result?;
++			drv.write_all(buf)?;
++		}
++
++		#[cfg(not(target_arch = "aarch64"))]
+ 		if let Some(drv) = get_console_driver() {
+ 			drv.lock().write_all(buf)?;
+ 		}
+@@ -394,10 +413,15 @@ impl Read for VirtioConsoleDriver {
+ }
+ 
+ impl Write for VirtioConsoleDriver {
++	/// Sends at most one packet. A longer `buf` is a short write, which
++	/// `write_all` continues; one packet of it all would trip the packet-size
++	/// assertion in `send_packet`.
+ 	fn write(&mut self, buf: &[u8]) -> Result<usize, Self::Error> {
+-		self.send_vq.send_packet(buf);
++		let max = usize::try_from(self.send_vq.packet_length).unwrap() - 1;
++		let n = buf.len().min(max);
++		self.send_vq.send_packet(&buf[..n]);
+ 
+-		Ok(buf.len())
++		Ok(n)
+ 	}
+ 
+ 	fn flush(&mut self) -> Result<(), Self::Error> {
+diff --git a/src/drivers/net/virtio/mod.rs b/src/drivers/net/virtio/mod.rs
+index 2769d94..f33a074 100644
+--- a/src/drivers/net/virtio/mod.rs
++++ b/src/drivers/net/virtio/mod.rs
+@@ -655,8 +655,8 @@ impl VirtioNetDriver<Uninit> {
+ 		let features = minimal_features
+ 			// Indirect descriptors can be used
+ 			| virtio::net::F::INDIRECT_DESC
+-			// Packed Vq can be used
+-			| virtio::net::F::RING_PACKED
++			// Not RING_PACKED: on Apple's Virtualization framework the device
++			// never uses this driver's packed queues (split queues work).
+ 			| virtio::net::F::NOTIFICATION_DATA
+ 			// MTU setting can be used
+ 			| virtio::net::F::MTU
+@@ -691,6 +691,24 @@ impl VirtioNetDriver<Uninit> {
+ 		// and will not be changed.
+ 		self.com_cfg.features_ok();
+ 
++		// Some devices refuse CSUM without GUEST_CSUM, which this driver does
++		// not support (Apple's Virtualization framework does). Offer the set
++		// once more without CSUM before giving up.
++		let mut negotiated_features = negotiated_features;
++		if !self.com_cfg.check_features()
++			&& negotiated_features.contains(virtio::net::F::CSUM)
++		{
++			warn!("Device refused the feature set; retrying without CSUM");
++			self.com_cfg.reset_dev();
++			self.com_cfg.ack_dev();
++			self.com_cfg.set_drv();
++			negotiated_features = self
++				.com_cfg
++				.control_registers()
++				.negotiate_features(features - virtio::net::F::CSUM);
++			self.com_cfg.features_ok();
++		}
++
+ 		// Checks if the device has accepted final set. This finishes feature negotiation.
+ 		if self.com_cfg.check_features() {
+ 			info!(
+diff --git a/src/drivers/virtio/transport/pci.rs b/src/drivers/virtio/transport/pci.rs
+index a16aba6..eb71fb7 100644
+--- a/src/drivers/virtio/transport/pci.rs
++++ b/src/drivers/virtio/transport/pci.rs
+@@ -55,13 +55,25 @@ pub fn map_dev_cfg<T>(cap: &PciCap) -> Option<&'static mut T> {
+ 		return None;
+ 	}
+ 
+-	// Drivers MAY do this check. See Virtio specification v1.1. - 4.1.4.1
+-	if cap.len() < u64::try_from(mem::size_of::<T>()).unwrap() {
+-		error!(
+-			"Device specific config from device {:x}, does not represent actual structure specified by the standard!",
+-			cap.dev_id()
++	// A device only has to expose the fields of the features it offers
++	// (Virtio specification v1.2 - 2.5), so the capability may be shorter than
++	// the full structure; Apple's Virtualization framework's virtio-net is. The
++	// drivers read only fields of negotiated features, but the structure must
++	// still fit into the mapped bar so no access can leave it.
++	let size = u64::try_from(mem::size_of::<T>()).unwrap();
++	if cap.len() < size {
++		if cap.bar_len() < cap.offset() + size {
++			error!(
++				"Device specific config from device {:x} is shorter than the structure specified by the standard and its bar cannot hold it!",
++				cap.dev_id()
++			);
++			return None;
++		}
++		warn!(
++			"Device specific config from device {:x} is {} of {size} bytes; only fields of offered features are present",
++			cap.dev_id(),
++			cap.len()
+ 		);
+-		return None;
+ 	}
+ 
+ 	let virt_addr_raw = cap.bar_addr() + cap.offset();
+@@ -295,12 +307,19 @@ impl ComCfg {
+ 		self.com_cfg.as_ptr()
+ 	}
+ 
+-	/// Resets the device status field to zero.
++	/// Resets the device status field to zero and waits until the device has
++	/// reset.
++	///
++	/// See Virtio specification v1.2 - 4.1.4.3.2: the driver MUST wait for
++	/// `device_status` to read 0 before reinitializing the device. Apple's
++	/// Virtualization framework resets asynchronously: without the wait, the
++	/// late reset discards the queue setup and the device never uses them.
+ 	pub fn reset_dev(&mut self) {
+-		self.com_cfg
+-			.as_mut_ptr()
+-			.device_status()
+-			.write(DeviceStatus::empty());
++		let device_status = self.com_cfg.as_mut_ptr().device_status();
++		device_status.write(DeviceStatus::empty());
++		while !device_status.read().is_empty() {
++			core::hint::spin_loop();
++		}
+ 	}
+ 
+ 	/// Sets the device status field to FAILED.
+diff --git a/src/env.rs b/src/env.rs
+index 1a0a336..e9b9c94 100644
+--- a/src/env.rs
++++ b/src/env.rs
+@@ -49,7 +49,13 @@ pub fn is_uhyve() -> bool {
+ }
+ 
+ pub fn is_uefi() -> bool {
+-	fdt().is_some_and(|fdt| fdt.root().compatible().first() == "hermit,uefi")
++	// Not `fdt.root().compatible()`: it panics when the root node has no
++	// `compatible` property, as on Apple's Virtualization framework.
++	fdt().is_some_and(|fdt| {
++		fdt.find_node("/")
++			.and_then(|root| root.compatible())
++			.is_some_and(|compatible| compatible.first() == "hermit,uefi")
++	})
+ }
+ 
+ pub fn fdt() -> Option<Fdt<'static>> {

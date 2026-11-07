@@ -30,10 +30,16 @@ section cpuinfo;  head -12 /proc/cpuinfo
 section virtio
 for d in /sys/bus/virtio/devices/*; do
 	echo "$d id=$(cat "$d/device") parent=$(readlink -f "$d/..")"
+	echo "  negotiated features (bit 0 first): $(cat "$d/features")"
 done
 section pci;      ls /sys/bus/pci/devices 2>/dev/null
 section platform; ls /sys/bus/platform/devices 2>/dev/null
 section ttys;     ls /sys/class/tty | grep -v -E '^tty[0-9]+$'
+section pci-config
+for d in /sys/bus/pci/devices/*; do
+	echo "device $(basename "$d") $(cat "$d/vendor") $(cat "$d/device")"
+	od -A x -t x1 -v "$d/config" | head -16
+done
 section dmesg;    dmesg
 section fdt-base64; base64 /sys/firmware/fdt
 section fdt-end

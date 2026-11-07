@@ -1,0 +1,666 @@
+diff --git a/src/arch/aarch64/kernel/mod.rs b/src/arch/aarch64/kernel/mod.rs
+index 3305a13..e0af271 100644
+--- a/src/arch/aarch64/kernel/mod.rs
++++ b/src/arch/aarch64/kernel/mod.rs
+@@ -80,6 +80,45 @@ pub fn args() -> Option<&'static str> {
+ 	None
+ }
+ 
++/// Boot tracing for machines with no console: with `vzstop=<n>` in the
++/// device tree's bootargs, checkpoint `n` powers the machine off through
++/// PSCI, so a clean stop shows the boot got that far and a hang that it did
++/// not. Loader checkpoints are 1-8; the kernel's start at 10.
++pub fn checkpoint(n: u32) {
++	let Some(args) = crate::env::fdt().and_then(|fdt| fdt.chosen().bootargs()) else {
++		return;
++	};
++	let Some(at) = args.find("vzstop=") else {
++		return;
++	};
++	let digits = args[at + 7..].split(' ').next().unwrap_or("");
++	if digits.parse::<u32>() == Ok(n) {
++		unsafe {
++			core::arch::asm!("hvc #0", in("x0") 0x8400_0008u64, options(noreturn));
++		}
++	}
++}
++
++/// Boot tracing for a value: with `<key><k>` in the bootargs (for example
++/// `vzbit=33`), powers the machine off if bit `k` of `value` is set.
++pub fn probe_bits(key: &str, value: u64) {
++	let Some(args) = crate::env::fdt().and_then(|fdt| fdt.chosen().bootargs()) else {
++		return;
++	};
++	let Some(at) = args.find(key) else {
++		return;
++	};
++	let digits = args[at + key.len()..].split(' ').next().unwrap_or("");
++	if let Ok(bit) = digits.parse::<u32>()
++		&& bit < 64
++		&& value & (1 << bit) != 0
++	{
++		unsafe {
++			core::arch::asm!("hvc #0", in("x0") 0x8400_0008u64, options(noreturn));
++		}
++	}
++}
++
+ /// Real Boot Processor initialization as soon as we have put the first Welcome message on the screen.
+ #[cfg(target_os = "none")]
+ pub fn boot_processor_init() {
+@@ -87,17 +126,24 @@ pub fn boot_processor_init() {
+ 		processor::configure();
+ 	}
+ 
++	checkpoint(13);
+ 	crate::mm::init();
++	checkpoint(14);
+ 	crate::mm::print_information();
+ 	CoreLocal::get().add_irq_counter();
+ 	env::init();
++	checkpoint(15);
+ 	interrupts::init();
++	checkpoint(16);
+ 	processor::detect_frequency();
+ 	crate::logging::KERNEL_LOGGER.set_time(true);
+ 	processor::print_information();
++	checkpoint(17);
+ 	systemtime::init();
++	checkpoint(18);
+ 	#[cfg(feature = "pci")]
+ 	pci::init();
++	checkpoint(19);
+ 
+ 	finish_processor_init();
+ }
+diff --git a/src/arch/aarch64/kernel/pci.rs b/src/arch/aarch64/kernel/pci.rs
+index feb1e8c..b126c30 100644
+--- a/src/arch/aarch64/kernel/pci.rs
++++ b/src/arch/aarch64/kernel/pci.rs
+@@ -322,7 +322,14 @@ pub fn init() {
+ 							}
+ 						}
+ 					}
++					if vendor_id == 0x1043 {
++						super::probe_bits("vzcmdpre=", u64::from(cmd.bits()));
++					}
+ 					dev.set_command(cmd);
++					if vendor_id == 0x1043 {
++						let readback = dev.header().command(pci_config).bits();
++						super::probe_bits("vzcmd=", u64::from(readback));
++					}
+ 
+ 					if let Some((pin, line)) =
+ 						detect_interrupt(bus.try_into().unwrap(), device.into(), fdt, pci_node)
+diff --git a/src/arch/aarch64/kernel/processor.rs b/src/arch/aarch64/kernel/processor.rs
+index 6fa7493..732a9c4 100644
+--- a/src/arch/aarch64/kernel/processor.rs
++++ b/src/arch/aarch64/kernel/processor.rs
+@@ -213,6 +213,18 @@ pub fn shutdown(error_code: i32) -> ! {
+ 		if #[cfg(feature = "semihosting")] {
+ 			semihosting::process::exit(error_code)
+ 		} else {
++			crate::arch::kernel::probe_bits("vzexit=", error_code as u64);
++			// Boot tracing (see kernel::checkpoint): with `vzhold` in the
++			// bootargs a normal shutdown spins instead, so only a checkpoint
++			// powers the machine off.
++			if env::fdt()
++				.and_then(|fdt| fdt.chosen().bootargs())
++				.is_some_and(|args| args.contains("vzhold"))
++			{
++				loop {
++					aarch64_cpu::asm::wfe();
++				}
++			}
+ 			unsafe {
+ 				const PSCI_SYSTEM_OFF: u64 = 0x8400_0008;
+ 				// call hypervisor to shut down the system
+diff --git a/src/drivers/console/mod.rs b/src/drivers/console/mod.rs
+index e143b2e..b42b0e7 100644
+--- a/src/drivers/console/mod.rs
++++ b/src/drivers/console/mod.rs
+@@ -112,11 +112,15 @@ impl Write for VirtioUART {
+ 				push_early_output(buf);
+ 				return Ok(buf.len());
+ 			};
++			crate::arch::kernel::checkpoint(41);
+ 			let mut drv = drv.lock();
++			crate::arch::kernel::checkpoint(42);
+ 			let mut result = Ok(());
+ 			take_early_output(|early| result = drv.write_all(early));
+ 			result?;
++			crate::arch::kernel::checkpoint(43);
+ 			drv.write_all(buf)?;
++			crate::arch::kernel::checkpoint(44);
+ 		}
+ 
+ 		#[cfg(not(target_arch = "aarch64"))]
+@@ -146,12 +150,21 @@ impl RxQueue {
+ 		}
+ 	}
+ 
+-	pub fn add(&mut self, mut vq: VirtQueue) {
++	/// Adds the queue without buffers: filling it notifies the device, which
++	/// the driver must not do before DRIVER_OK (Virtio v1.2 - 3.1.1). See
++	/// [`fill`](Self::fill).
++	pub fn add(&mut self, vq: VirtQueue) {
++		self.vq = Some(vq);
++	}
++
++	/// Gives the device its receive buffers. Call once the device is live.
++	pub fn fill(&mut self) {
+ 		const BUFF_PER_PACKET: u16 = 2;
++		let Some(vq) = &mut self.vq else {
++			return;
++		};
+ 		let num_packets = vq.size() / BUFF_PER_PACKET;
+-		fill_queue(&mut vq, num_packets, self.packet_size);
+-
+-		self.vq = Some(vq);
++		fill_queue(vq, num_packets, self.packet_size);
+ 	}
+ 
+ 	pub fn enable_notifs(&mut self) {
+@@ -236,7 +249,10 @@ impl TxQueue {
+ 			return;
+ 		};
+ 
+-		while vq.try_recv().is_ok() {}
++		while vq.try_recv().is_ok() {
++			#[cfg(target_arch = "aarch64")]
++			crate::arch::kernel::checkpoint(52);
++		}
+ 	}
+ 
+ 	/// Provides a slice to copy the packet and transfer the packet
+@@ -336,6 +352,7 @@ impl VirtioConsoleDriver {
+ 		self.com_cfg.set_drv();
+ 
+ 		let minimal_features = virtio::console::F::VERSION_1;
++
+ 		let negotiated_features = self
+ 			.com_cfg
+ 			.control_registers()
+@@ -364,34 +381,42 @@ impl VirtioConsoleDriver {
+ 		}
+ 
+ 		// create the queues and tell device about them
+-		self.recv_vq.add(VirtQueue::Split(
+-			SplitVq::new(
+-				&mut self.com_cfg,
+-				&self.notif_cfg,
+-				VIRTIO_MAX_QUEUE_SIZE,
+-				0,
+-				self.dev_cfg.features.into(),
++		let mut new_vq = |index| {
++			VirtQueue::Split(
++				SplitVq::new(
++					&mut self.com_cfg,
++					&self.notif_cfg,
++					VIRTIO_MAX_QUEUE_SIZE,
++					index,
++					self.dev_cfg.features.into(),
++				)
++				.unwrap(),
+ 			)
+-			.unwrap(),
+-		));
++		};
++		let recv_vq = new_vq(0);
++		let send_vq = new_vq(1);
++
++		self.recv_vq.add(recv_vq);
+ 		// Interrupt for receiving packets is wanted
+ 		self.recv_vq.enable_notifs();
+ 
+-		self.send_vq.add(VirtQueue::Split(
+-			SplitVq::new(
+-				&mut self.com_cfg,
+-				&self.notif_cfg,
+-				VIRTIO_MAX_QUEUE_SIZE,
+-				1,
+-				self.dev_cfg.features.into(),
+-			)
+-			.unwrap(),
+-		));
++		self.send_vq.add(send_vq);
+ 		// Interrupt for communicating that a sent packet left, is not needed
+ 		self.send_vq.disable_notifs();
+ 
+ 		// At this point the device is "live"
+ 		self.com_cfg.drv_ok();
++		self.recv_vq.fill();
++		#[cfg(target_arch = "aarch64")]
++		crate::arch::kernel::probe_bits("vzst=", u64::from(self.com_cfg.dev_status_bits()));
++		#[cfg(target_arch = "aarch64")]
++		for q in 0..2u16 {
++			if let Some(mut vq) = self.com_cfg.select_vq(q) {
++				let state = vq.debug_state([0; 3]);
++				info!("console queue {q}: debug_state {state:#x}");
++				crate::arch::kernel::probe_bits("vzqe=", (state & 1) << q);
++			}
++		}
+ 
+ 		Ok(())
+ 	}
+diff --git a/src/drivers/net/virtio/mod.rs b/src/drivers/net/virtio/mod.rs
+index f33a074..c1b11bb 100644
+--- a/src/drivers/net/virtio/mod.rs
++++ b/src/drivers/net/virtio/mod.rs
+@@ -655,8 +655,8 @@ impl VirtioNetDriver<Uninit> {
+ 		let features = minimal_features
+ 			// Indirect descriptors can be used
+ 			| virtio::net::F::INDIRECT_DESC
+-			// Not RING_PACKED: on Apple's Virtualization framework the device
+-			// never uses this driver's packed queues (split queues work).
++			// Packed Vq can be used
++			| virtio::net::F::RING_PACKED
+ 			| virtio::net::F::NOTIFICATION_DATA
+ 			// MTU setting can be used
+ 			| virtio::net::F::MTU
+@@ -669,7 +669,20 @@ impl VirtioNetDriver<Uninit> {
+ 			// Multiqueue support
+ 			| virtio::net::F::MQ
+ 			// Checksum calculation can partially be offloaded to the device
+-			| virtio::net::F::CSUM;
++			| virtio::net::F::CSUM
++;
++		// Spike boot tracing: `vznetfeat=<decimal mask>` replaces the
++		// requested features, to find which ones a device refuses.
++		#[cfg(target_arch = "aarch64")]
++		let features = crate::env::fdt()
++			.and_then(|fdt| fdt.chosen().bootargs())
++			.and_then(|args| {
++				let at = args.find("vznetfeat=")?;
++				args[at + 10..].split(' ').next()?.parse::<u64>().ok()
++			})
++			.map_or(features, |mask| {
++				virtio::net::F::from_bits_retain(u128::from(mask).into())
++			});
+ 
+ 		// Currently the driver does NOT support the features below.
+ 		// In order to provide functionality for these, the driver
+@@ -677,10 +690,14 @@ impl VirtioNetDriver<Uninit> {
+ 		// | virtio::net::F::GUEST_TSO4
+ 		// | virtio::net::F::GUEST_TSO6
+ 
++		#[cfg(target_arch = "aarch64")]
++		crate::drivers::virtio::PROBE_FEATURES.store(true, core::sync::atomic::Ordering::Relaxed);
+ 		let negotiated_features = self
+ 			.com_cfg
+ 			.control_registers()
+ 			.negotiate_features(features);
++		#[cfg(target_arch = "aarch64")]
++		crate::drivers::virtio::PROBE_FEATURES.store(false, core::sync::atomic::Ordering::Relaxed);
+ 
+ 		if !negotiated_features.contains(minimal_features) {
+ 			error!("Device features set, does not satisfy minimal features needed. Aborting!");
+@@ -709,8 +726,12 @@ impl VirtioNetDriver<Uninit> {
+ 			self.com_cfg.features_ok();
+ 		}
+ 
++		#[cfg(target_arch = "aarch64")]
++		crate::arch::kernel::checkpoint(60);
+ 		// Checks if the device has accepted final set. This finishes feature negotiation.
+ 		if self.com_cfg.check_features() {
++			#[cfg(target_arch = "aarch64")]
++			crate::arch::kernel::checkpoint(61);
+ 			info!(
+ 				"Features have been negotiated between virtio network device {:x} and driver.",
+ 				self.dev_cfg.dev_id
+@@ -733,6 +754,8 @@ impl VirtioNetDriver<Uninit> {
+ 		debug!("Using RX buffer size of {}", inner.recv_vqs.buf_size);
+ 
+ 		self.dev_spec_init(&mut inner)?;
++		#[cfg(target_arch = "aarch64")]
++		crate::arch::kernel::checkpoint(62);
+ 		info!(
+ 			"Device specific initialization for Virtio network device {:x} finished",
+ 			self.dev_cfg.dev_id
+diff --git a/src/drivers/net/virtio/pci.rs b/src/drivers/net/virtio/pci.rs
+index 104ab84..a05fde0 100644
+--- a/src/drivers/net/virtio/pci.rs
++++ b/src/drivers/net/virtio/pci.rs
+@@ -70,15 +70,21 @@ impl VirtioNetDriver<Uninit> {
+ 		// enable bus master mode
+ 		device.set_command(CommandRegister::BUS_MASTER_ENABLE);
+ 
++		#[cfg(target_arch = "aarch64")]
++		crate::arch::kernel::checkpoint(65);
+ 		let drv = match pci::map_caps(device) {
+ 			Ok(caps) => match VirtioNetDriver::new(caps, device) {
+ 				Ok(driver) => driver,
+ 				Err(vnet_err) => {
++					#[cfg(target_arch = "aarch64")]
++					crate::arch::kernel::checkpoint(64);
+ 					error!("Initializing new network driver failed. Aborting!");
+ 					return Err(VirtioError::NetDriver(vnet_err));
+ 				}
+ 			},
+ 			Err(err) => {
++				#[cfg(target_arch = "aarch64")]
++				crate::arch::kernel::checkpoint(63);
+ 				error!("Mapping capabilities failed. Aborting!");
+ 				return Err(err);
+ 			}
+diff --git a/src/drivers/pci.rs b/src/drivers/pci.rs
+index bfd574c..371c4ac 100644
+--- a/src/drivers/pci.rs
++++ b/src/drivers/pci.rs
+@@ -490,6 +490,10 @@ pub(crate) fn init() {
+ 				"Found virtio device with device id {:#x}",
+ 				adapter.device_id()
+ 			);
++			#[cfg(target_arch = "aarch64")]
++			if adapter.device_id() == 0x1043 {
++				crate::arch::kernel::checkpoint(30);
++			}
+ 
+ 			#[cfg(not(feature = "virtio"))]
+ 			error!("Virtio support is disabled.");
+@@ -503,6 +507,8 @@ pub(crate) fn init() {
+ 					crate::console::CONSOLE
+ 						.lock()
+ 						.replace_device(IoDevice::Virtio(VirtioUART::new()));
++					#[cfg(target_arch = "aarch64")]
++					crate::arch::kernel::checkpoint(31);
+ 				}
+ 				#[cfg(feature = "virtio-fs")]
+ 				Ok(VirtioDriver::Fs(drv)) => {
+@@ -514,7 +520,14 @@ pub(crate) fn init() {
+ 				Ok(VirtioDriver::Vsock(drv)) => {
+ 					register_driver(PciDriver::VirtioVsock(InterruptTicketMutex::new(*drv)));
+ 				}
+-				Err(err) => error!("Could not initialize virtio-pci device: {err}"),
++				Err(err) => {
++					error!("Could not initialize virtio-pci device: {err}");
++					#[cfg(target_arch = "aarch64")]
++					{
++						crate::arch::kernel::checkpoint(32);
++						crate::arch::kernel::probe_bits("vzfail=", u64::from(adapter.device_id()));
++					}
++				}
+ 			}
+ 		}
+ 
+diff --git a/src/drivers/virtio/mod.rs b/src/drivers/virtio/mod.rs
+index caaae14..a07a179 100644
+--- a/src/drivers/virtio/mod.rs
++++ b/src/drivers/virtio/mod.rs
+@@ -126,6 +126,12 @@ pub trait ControlRegisters<'a>: self::control_registers_access::ControlRegisters
+ 		virtio::F: From<DF> + AsRef<DF> + AsMut<DF>;
+ }
+ 
++/// Spike boot tracing: when set, the next feature negotiation reports the
++/// device's raw feature bits through `vzbit=` (see `arch::kernel::probe_bits`).
++#[cfg(target_arch = "aarch64")]
++pub(crate) static PROBE_FEATURES: core::sync::atomic::AtomicBool =
++	core::sync::atomic::AtomicBool::new(false);
++
+ impl<'a, T> ControlRegisters<'a> for T
+ where
+ 	T: self::control_registers_access::ControlRegistersAccess<'a>,
+@@ -135,7 +141,12 @@ where
+ 		DF: FeatureBits + From<virtio::F> + AsRef<virtio::F> + AsMut<virtio::F> + fmt::Debug + Copy,
+ 		virtio::F: From<DF> + AsRef<DF> + AsMut<DF>,
+ 	{
+-		let device_features = DF::from(self.read_device_features());
++		let raw_device_features = self.read_device_features();
++		#[cfg(target_arch = "aarch64")]
++		if PROBE_FEATURES.load(core::sync::atomic::Ordering::Relaxed) {
++			crate::arch::kernel::probe_bits("vzbit=", raw_device_features.bits().to_ne() as u64);
++		}
++		let device_features = DF::from(raw_device_features);
+ 		info!("device_features = {device_features:?}");
+ 		debug_assert!(
+ 			device_features.requirements_satisfied(),
+diff --git a/src/drivers/virtio/transport/pci.rs b/src/drivers/virtio/transport/pci.rs
+index eb71fb7..07b3141 100644
+--- a/src/drivers/virtio/transport/pci.rs
++++ b/src/drivers/virtio/transport/pci.rs
+@@ -235,13 +235,13 @@ impl VqCfgHandler<'_> {
+ 		let queue_size = self.raw.as_mut_ptr().queue_size();
+ 
+ 		let dev_queue_size = queue_size.read().to_ne();
+-		if dev_queue_size >= max_size {
+-			queue_size.write(max_size.into());
+-			debug_assert_eq!(queue_size.read().to_ne(), max_size);
+-			max_size
+-		} else {
+-			dev_queue_size
+-		}
++		let size = dev_queue_size.min(max_size);
++		// Write the size even when it is the device's maximum, as Linux does:
++		// Apple's Virtualization framework does not enable a queue whose size
++		// the driver never wrote.
++		queue_size.write(size.into());
++		debug_assert_eq!(queue_size.read().to_ne(), size);
++		size
+ 	}
+ 
+ 	pub fn set_ring_addr(&mut self, addr: PhysAddr) {
+@@ -268,6 +268,26 @@ impl VqCfgHandler<'_> {
+ 			.write(addr.as_u64().into());
+ 	}
+ 
++	/// Boot tracing: how the device reports this queue. Bit 0: enabled;
++	/// bits 1-3: queue_desc, queue_driver, queue_device read back as `addrs`;
++	/// bits 8-23: queue_size.
++	pub fn debug_state(&mut self, addrs: [u64; 3]) -> u64 {
++		self.select_queue();
++		let raw = self.raw.as_mut_ptr();
++		let mut bits = u64::from(raw.queue_enable().read().to_ne() == 1);
++		let read = [
++			raw.queue_desc().read().to_ne(),
++			raw.queue_driver().read().to_ne(),
++			raw.queue_device().read().to_ne(),
++		];
++		for (i, (got, want)) in read.iter().zip(addrs).enumerate() {
++			if *got == want {
++				bits |= 1 << (i + 1);
++			}
++		}
++		bits | u64::from(raw.queue_size().read().to_ne()) << 8
++	}
++
+ 	pub fn notif_off(&mut self) -> u16 {
+ 		self.select_queue();
+ 		self.raw.as_mut_ptr().queue_notify_off().read().to_ne()
+@@ -311,9 +331,9 @@ impl ComCfg {
+ 	/// reset.
+ 	///
+ 	/// See Virtio specification v1.2 - 4.1.4.3.2: the driver MUST wait for
+-	/// `device_status` to read 0 before reinitializing the device. Apple's
+-	/// Virtualization framework resets asynchronously: without the wait, the
+-	/// late reset discards the queue setup and the device never uses them.
++	/// `device_status` to read 0 before reinitializing the device. Some
++	/// devices reset asynchronously (Apple's Virtualization framework), and
++	/// configuration written before the reset finishes is lost.
+ 	pub fn reset_dev(&mut self) {
+ 		let device_status = self.com_cfg.as_mut_ptr().device_status();
+ 		device_status.write(DeviceStatus::empty());
+@@ -367,6 +387,11 @@ impl ComCfg {
+ 	///
+ 	/// Re-reads device status to ensure the FEATURES_OK bit is still set:
+ 	/// otherwise, the device does not support our subset of features and the device is unusable.
++	/// The raw device status, for boot tracing.
++	pub fn dev_status_bits(&self) -> u8 {
++		self.com_cfg.as_ptr().device_status().read().bits()
++	}
++
+ 	pub fn check_features(&self) -> bool {
+ 		let status = self.com_cfg.as_ptr().device_status().read();
+ 		status.contains(DeviceStatus::FEATURES_OK)
+@@ -389,6 +414,8 @@ pub struct NotifCfg {
+ 	/// Start addr, from where the notification addresses for the virtqueues are computed
+ 	base_addr: u64,
+ 	notify_off_multiplier: u32,
++	/// The capability's offset in its bar, for boot tracing.
++	cap_offset: u64,
+ 	/// defines the maximum size of the notification space, starting from base_addr.
+ 	#[cfg(debug_assertions)]
+ 	length: u64,
+@@ -419,13 +446,26 @@ impl NotifCfg {
+ 		Some(NotifCfg {
+ 			base_addr,
+ 			notify_off_multiplier,
++			cap_offset: cap.offset(),
+ 			#[cfg(debug_assertions)]
+ 			length: cap.len(),
+ 		})
+ 	}
+ 
+ 	pub fn notification_location(&self, vq_cfg_handler: &mut VqCfgHandler<'_>) -> *mut le32 {
+-		let addend = u32::from(vq_cfg_handler.notif_off()) * self.notify_off_multiplier;
++		let notif_off = vq_cfg_handler.notif_off();
++		let addend = u32::from(notif_off) * self.notify_off_multiplier;
++		// Boot tracing: bits 0-15 the notify capability's offset in its bar,
++		// bits 16-31 the multiplier, bits 32-47 queue_notify_off (queue 1).
++		#[cfg(target_arch = "aarch64")]
++		if vq_cfg_handler.vq_index == 1 {
++			crate::arch::kernel::probe_bits(
++				"vznot=",
++				(self.cap_offset & 0xffff)
++					| u64::from(self.notify_off_multiplier & 0xffff) << 16
++					| u64::from(notif_off) << 32,
++			);
++		}
+ 
+ 		// TODO: This should be
+ 		// cap.length >= queue_notify_off * notify_off_multiplier + 4
+diff --git a/src/drivers/virtio/virtqueue/split.rs b/src/drivers/virtio/virtqueue/split.rs
+index cc58405..2cfd16d 100644
+--- a/src/drivers/virtio/virtqueue/split.rs
++++ b/src/drivers/virtio/virtqueue/split.rs
+@@ -208,6 +208,15 @@ impl Virtq for SplitVq {
+ 				.with_vqn(self.index)
+ 				.with_next_idx(next_idx);
+ 			self.notif_ctrl.notify_dev(notification_data);
++			#[cfg(target_arch = "aarch64")]
++			if self.index == 1 {
++				crate::arch::kernel::checkpoint(51);
++			}
++		} else {
++			#[cfg(target_arch = "aarch64")]
++			if self.index == 1 {
++				crate::arch::kernel::checkpoint(50);
++			}
+ 		}
+ 		Ok(())
+ 	}
+@@ -288,10 +297,15 @@ impl SplitVq {
+ 		};
+ 
+ 		// Provide memory areas of the queues data structures to the device
+-		vq_handler.set_ring_addr(DeviceAlloc.phys_addr_from(descr_table_cell.as_mut()));
++		let addrs = [
++			DeviceAlloc.phys_addr_from(descr_table_cell.as_mut()),
++			DeviceAlloc.phys_addr_from(avail_ring_cell.as_mut()),
++			DeviceAlloc.phys_addr_from(used_ring_cell.as_mut()),
++		];
++		vq_handler.set_ring_addr(addrs[0]);
+ 		// As usize is safe here, as the *mut EventSuppr raw pointer is a thin pointer of size usize
+-		vq_handler.set_drv_ctrl_addr(DeviceAlloc.phys_addr_from(avail_ring_cell.as_mut()));
+-		vq_handler.set_dev_ctrl_addr(DeviceAlloc.phys_addr_from(used_ring_cell.as_mut()));
++		vq_handler.set_drv_ctrl_addr(addrs[1]);
++		vq_handler.set_dev_ctrl_addr(addrs[2]);
+ 
+ 		let order_platform = features.contains(virtio::F::ORDER_PLATFORM);
+ 
+@@ -316,6 +330,15 @@ impl SplitVq {
+ 		}
+ 
+ 		vq_handler.enable_queue();
++		#[cfg(all(target_arch = "aarch64", feature = "pci"))]
++		if index == 1 {
++			let state = vq_handler.debug_state(addrs.map(|a| a.as_u64()));
++			crate::arch::kernel::probe_bits("vzq=", state);
++			// Bits 32-47: the low 16 bits of the descriptor table address.
++			crate::arch::kernel::probe_bits("vzq=", (addrs[0].as_u64() & 0xffff) << 32);
++			// Bits 48-63: address bits 16-31.
++			crate::arch::kernel::probe_bits("vzq=", ((addrs[0].as_u64() >> 16) & 0xffff) << 48);
++		}
+ 
+ 		info!("Created SplitVq: idx={index}, size={size}");
+ 
+diff --git a/src/lib.rs b/src/lib.rs
+index ac03450..1c72bc8 100644
+--- a/src/lib.rs
++++ b/src/lib.rs
+@@ -173,9 +173,15 @@ extern "C" fn initd(_arg: usize) {
+ 		info!("Hermit is running on common system!");
+ 	}
+ 
++	#[cfg(target_arch = "aarch64")]
++	arch::kernel::checkpoint(22);
+ 	// Initialize Drivers
+ 	drivers::init();
++	#[cfg(target_arch = "aarch64")]
++	arch::kernel::checkpoint(23);
+ 	crate::executor::init();
++	#[cfg(target_arch = "aarch64")]
++	arch::kernel::checkpoint(24);
+ 
+ 	syscalls::init();
+ 	fs::init();
+@@ -223,6 +229,8 @@ fn synch_all_cores() {
+ /// Entry Point of Hermit for the Boot Processor
+ #[cfg(target_os = "none")]
+ fn boot_processor_main() -> ! {
++	#[cfg(target_arch = "aarch64")]
++	arch::kernel::checkpoint(10);
+ 	// Initialize the kernel and hardware.
+ 	hermit_sync::Lazy::force(&console::CONSOLE);
+ 	unsafe {
+@@ -230,6 +238,8 @@ fn boot_processor_main() -> ! {
+ 	}
+ 
+ 	info!("Welcome to Hermit {}", env!("CARGO_PKG_VERSION"));
++	#[cfg(target_arch = "aarch64")]
++	arch::kernel::checkpoint(11);
+ 	if let Some(git_version) = built_info::GIT_VERSION {
+ 		let dirty = if built_info::GIT_DIRTY == Some(true) {
+ 			" (dirty)"
+@@ -262,11 +272,17 @@ fn boot_processor_main() -> ! {
+ 	let bss_ptr = &raw mut __bss_start;
+ 	info!("BSS starts at {bss_ptr:p}");
+ 	info!("tls_info = {:#x?}", env::boot_info().load_info.tls_info);
++	#[cfg(target_arch = "aarch64")]
++	arch::kernel::checkpoint(12);
+ 	arch::boot_processor_init();
++	#[cfg(target_arch = "aarch64")]
++	arch::kernel::checkpoint(20);
+ 
+ 	#[cfg(not(target_arch = "riscv64"))]
+ 	scheduler::add_current_core();
+ 	interrupts::enable();
++	#[cfg(target_arch = "aarch64")]
++	arch::kernel::checkpoint(21);
+ 
+ 	arch::kernel::boot_next_processor();
+ 
+@@ -314,6 +330,24 @@ fn application_processor_main() -> ! {
+ #[cfg(target_os = "none")]
+ #[panic_handler]
+ fn panic(info: &core::panic::PanicInfo<'_>) -> ! {
++	#[cfg(target_arch = "aarch64")]
++	{
++		arch::kernel::checkpoint(40);
++		// Boot tracing: report the panic location one bit per boot,
++		// `vzpl=<bit>` for its line, `vzpf=<substring>` for its file.
++		if let Some(loc) = info.location() {
++			arch::kernel::probe_bits("vzpl=", u64::from(loc.line()));
++			if let Some(args) = env::fdt().and_then(|fdt| fdt.chosen().bootargs())
++				&& let Some(at) = args.find("vzpf=")
++				&& let Some(sub) = args[at + 5..].split(' ').next()
++				&& loc.file().contains(sub)
++			{
++				unsafe {
++					core::arch::asm!("hvc #0", in("x0") 0x8400_0008u64, options(noreturn));
++				}
++			}
++		}
++	}
+ 	let core_id = crate::arch::core_local::core_id();
+ 	panic_println!("[{core_id}][PANIC] {info}\n");
+ 

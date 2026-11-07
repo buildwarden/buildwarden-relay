@@ -1,2 +1,4 @@
 .work/
 out/
+apps/*/target/
+apps/*/target-*/

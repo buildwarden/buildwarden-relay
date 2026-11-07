@@ -6,6 +6,7 @@
 // own verdict on a non-Linux image is what gets recorded.
 //
 // usage: vzrun <kernel> <initrd> [--cmdline S] [--console FILE] [--seconds N]
+//              [--mac XX:XX:XX:XX:XX:XX]
 //
 // The console goes to FILE (default stdout). The run stops after N seconds
 // (default 20) if the guest has not stopped itself. Exit status: 0 guest
@@ -28,6 +29,7 @@ func option(_ name: String) -> String? {
     return v
 }
 let cmdline = option("--cmdline") ?? ""
+let mac = option("--mac")
 let consolePath = option("--console")
 let seconds = Double(option("--seconds") ?? "20") ?? 20
 guard args.count == 2 else {
@@ -51,6 +53,11 @@ console.attachment = VZFileHandleSerialPortAttachment(
 
 let net = VZVirtioNetworkDeviceConfiguration()
 net.attachment = VZNATNetworkDeviceAttachment()
+if let mac = mac {
+    // A fixed MAC finds the guest's lease in /var/db/dhcpd_leases.
+    guard let address = VZMACAddress(string: mac) else { fail(64, "bad --mac \(mac)") }
+    net.macAddress = address
+}
 
 let config = VZVirtualMachineConfiguration()
 config.bootLoader = boot
@@ -59,6 +66,7 @@ config.memorySize = 512 * 1024 * 1024
 config.serialPorts = [console]
 config.networkDevices = [net]
 config.entropyDevices = [VZVirtioEntropyDeviceConfiguration()]
+
 do {
     try config.validate()
 } catch {

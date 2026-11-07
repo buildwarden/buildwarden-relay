@@ -1,0 +1,5 @@
+PASS qemu-uart  upstream hello_world on the PL011
+PASS qemu-vcon  hello-vz on the virtio console
+PASS qemu-net  echo through a port forward: 'qemu echo 41416'
+PASS vz-hello  Hello World over VZ's virtio console
+PASS vz-net  lease 192.168.64.30 for 02:42:ac:11:c8:a1, host->guest echo: 'vz echo 41416'
