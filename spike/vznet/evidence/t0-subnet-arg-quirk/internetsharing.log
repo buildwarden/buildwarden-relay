@@ -1,0 +1,21 @@
+Timestamp               Ty Process[PID:TID]
+2026-11-08 10:41:31.490 Df InternetSharing[14987:8465a1] [com.apple.NetworkSharing:daemon] netrbCreateInterface: network <private> doesn't belong to client <private>
+2026-11-08 10:41:31.516 Df InternetSharing[14987:8465a1] [com.apple.NetworkSharing:daemon] can't have the gateway at the subnet address
+2026-11-08 10:41:31.516 Df InternetSharing[14987:8465a1] [com.apple.NetworkSharing:daemon] mis_network_start_continued: mis_network_setup_v4 2, network <private>, err 49
+2026-11-08 10:41:31.540 Df InternetSharing[14987:8465a1] [com.apple.NetworkSharing:daemon] mis_network_start: mis_network_start_continued, network <private>, err 49
+2026-11-08 10:41:35.676 Df InternetSharing[14987:8465a1] [com.apple.NetworkSharing:daemon] netrbCreateInterface: network <private> doesn't belong to client <private>
+2026-11-08 10:41:35.712 Df InternetSharing[14987:8465a1] [com.apple.NetworkSharing:daemon] can't have the gateway at the subnet address
+2026-11-08 10:41:35.712 Df InternetSharing[14987:8465a1] [com.apple.NetworkSharing:daemon] mis_network_start_continued: mis_network_setup_v4 2, network <private>, err 49
+2026-11-08 10:41:35.737 Df InternetSharing[14987:8465a1] [com.apple.NetworkSharing:daemon] mis_network_start: mis_network_start_continued, network <private>, err 49
+2026-11-08 10:42:23.987 Df InternetSharing[14987:84d4e1] [com.apple.NetworkSharing:daemon] netrbCreateInterface: network <private> doesn't belong to client <private>
+2026-11-08 10:42:24.023 Df InternetSharing[14987:84d4e1] [com.apple.NetworkSharing:daemon] can't have the gateway at the subnet address
+2026-11-08 10:42:24.023 Df InternetSharing[14987:84d4e1] [com.apple.NetworkSharing:daemon] mis_network_start_continued: mis_network_setup_v4 2, network <private>, err 49
+2026-11-08 10:42:24.047 Df InternetSharing[14987:84d4e1] [com.apple.NetworkSharing:daemon] mis_network_start: mis_network_start_continued, network <private>, err 49
+2026-11-08 10:43:47.786 Df InternetSharing[14987:84d4e1] [com.apple.NetworkSharing:daemon] netrbCreateInterface: network <private> doesn't belong to client <private>
+2026-11-08 10:43:51.978 Df InternetSharing[14987:84d4e1] [com.apple.NetworkSharing:daemon] netrbCreateInterface: network <private> doesn't belong to client <private>
+2026-11-08 10:44:11.616 Df InternetSharing[14987:856fe5] [com.apple.NetworkSharing:daemon] netrbCreateInterface: network <private> doesn't belong to client <private>
+2026-11-08 10:44:18.059 Df InternetSharing[14987:856fe5] [com.apple.NetworkSharing:daemon] netrbCreateInterface: network <private> doesn't belong to client <private>
+2026-11-08 10:45:16.142 Df InternetSharing[14987:856fe5] [com.apple.NetworkSharing:daemon] netrbCreateInterface: network <private> doesn't belong to client <private>
+2026-11-08 10:45:32.893 Df InternetSharing[14987:856fe5] [com.apple.NetworkSharing:daemon] netrbCreateInterface: network <private> doesn't belong to client <private>
+2026-11-08 10:46:31.419 Df InternetSharing[14987:862b3f] [com.apple.NetworkSharing:daemon] netrbCreateInterface: network <private> doesn't belong to client <private>
+2026-11-08 10:47:11.673 Df InternetSharing[14987:8601a4] [com.apple.NetworkSharing:daemon] netrbCreateInterface: network <private> doesn't belong to client <private>

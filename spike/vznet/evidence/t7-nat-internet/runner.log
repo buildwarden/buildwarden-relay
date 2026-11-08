@@ -1,0 +1,5 @@
+## vmnetpair --net nat --seconds 40 --build-cmdline -ip 192.168.64.220 -gateway 192.168.64.1 -mask 255.255.255.0 -- 1.1.1.1:80
+vmnetpair: host echo server on *:7100
+vmnetpair: build started
+vmnetpair: build stopped
+exit 0

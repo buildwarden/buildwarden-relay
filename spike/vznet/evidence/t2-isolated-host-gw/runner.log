@@ -1,0 +1,9 @@
+## vmnetpair --net vmnet-host --isolate --subnet 10.79.0.1 --seconds 40 --build-cmdline -ip 10.79.0.20 -gateway 10.79.0.1 -mask 255.255.255.0 -- 10.79.0.1:7100
+vmnetpair: host echo server on *:7100
+vmnetpair: network: NAT44, NAT66, DHCP, DNS proxy, RA disabled
+vmnetpair: network: set_ipv4_subnet 10.79.0.1/24 -> 1000
+vmnetpair: network: vmnet-host subnet 10.79.0.1/255.255.255.0
+vmnetpair: build started
+vmnetpair: host echo: connection from 10.79.0.20
+vmnetpair: build stopped
+exit 0

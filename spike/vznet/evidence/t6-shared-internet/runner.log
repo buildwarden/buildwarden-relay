@@ -1,0 +1,7 @@
+## vmnetpair --net vmnet-shared --subnet 10.84.0.1 --seconds 40 --build-cmdline -ip 10.84.0.20 -gateway 10.84.0.1 -mask 255.255.255.0 -- 1.1.1.1:80
+vmnetpair: host echo server on *:7100
+vmnetpair: network: set_ipv4_subnet 10.84.0.1/24 -> 1000
+vmnetpair: network: vmnet-shared subnet 10.84.0.1/255.255.255.0
+vmnetpair: build started
+vmnetpair: build stopped
+exit 0

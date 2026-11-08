@@ -1,0 +1,14 @@
+pid 95214 uid 501
+bridged: networkInterfaces = [en8(DL-Dock), en0(Wi-Fi)]
+bridged: validate() refused: Error Domain=VZErrorDomain Code=2 "Using VZBridgedNetworkDeviceAttachment in a process that lacks the “com.apple.vm.networking” entitlement." UserInfo={NSLocalizedFailure=Invalid virtual machine configuration., NSLocalizedFailureReason=Using VZBridgedNetworkDeviceAttachment in a process that lacks the “com.apple.vm.networking” entitlement.}
+custom[host-default] network_create: VMNET_SUCCESS subnet 192.168.128.1/255.255.255.0
+custom[host-default] VZVmnetNetworkDeviceAttachment: created
+custom[host-isolated] set_ipv4_subnet 10.77.0.0/24: VMNET_SUCCESS
+custom[host-isolated] network_create: VMNET_FAILURE
+custom[shared-default] network_create: VMNET_SUCCESS subnet 192.168.64.1/255.255.255.0
+custom[shared-default] VZVmnetNetworkDeviceAttachment: created
+custom[shared-nat-off] network_create: VMNET_FAILURE
+legacy[host] start_interface: VMNET_SUCCESS
+legacy[host+network_identifier] start_interface: VMNET_SUCCESS
+holding 12s
+done

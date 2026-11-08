@@ -1,0 +1,2 @@
+Destination        Gateway            Flags               Netif Expire
+net.inet.ip.forwarding: 1

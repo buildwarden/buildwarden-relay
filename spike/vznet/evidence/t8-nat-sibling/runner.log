@@ -1,0 +1,7 @@
+## vmnetpair --net nat --far --seconds 45 --build-cmdline -ip 192.168.64.221 -gateway 192.168.64.1 -mask 255.255.255.0 -- 192.168.64.35:7000
+vmnetpair: host echo server on *:7100
+vmnetpair: far started
+vmnetpair: build started
+vmnetpair: host side dumped to evidence/t8-nat-sibling/host-side.txt
+vmnetpair: timed out after 45s
+exit 4

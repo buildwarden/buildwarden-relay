@@ -1,0 +1,25 @@
+vmenet0: flags=8963<UP,BROADCAST,SMART,RUNNING,PROMISC,SIMPLEX,MULTICAST> mtu 1500
+	ether 02:00:00:00:00:00
+	media: autoselect
+	status: active
+bridge100: flags=8a63<UP,BROADCAST,SMART,RUNNING,ALLMULTI,SIMPLEX,MULTICAST> mtu 1500
+	options=3<RXCSUM,TXCSUM>
+	ether 02:00:00:00:00:00
+	inet 10.77.0.1 netmask 0xffffff00 broadcast 10.77.0.255
+	inet6 fe80::fcb2:14ff:fe89:d164%bridge100 prefixlen 64 scopeid 0x1e 
+	Configuration:
+		id 0:0:0:0:0:0 priority 0 hellotime 0 fwddelay 0
+		maxage 0 holdcnt 0 proto stp maxaddr 256 timeout 1200
+		root id 0:0:0:0:0:0 priority 0 ifcost 0 port 0
+		ipfilter disabled flags 0x0
+	member: vmenet0 flags=20003<LEARNING,DISCOVER,VIRTIO>
+	        ifmaxaddr 0 port 29 priority 0 path cost 0
+	Address cache:
+		2:42:c:0:0:1 Vlan1 vmenet0 1198 flags=0<>
+	nd6 options=201<PERFORMNUD,DAD>
+	media: autoselect
+	status: active
+Destination        Gateway            Flags               Netif Expire
+default            link#30            UCSIg           bridge100      !
+10.77/24           link#30            UC              bridge100      !
+net.inet.ip.forwarding: 1

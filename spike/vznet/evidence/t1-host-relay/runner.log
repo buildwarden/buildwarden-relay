@@ -1,0 +1,10 @@
+## vmnetpair --net vmnet-host --subnet 10.77.0.1 --relay --relay-ip 10.77.0.10 --seconds 45 --build-cmdline -ip 10.77.0.20 -gateway 10.77.0.1 -mask 255.255.255.0 -- 10.77.0.10:7000
+vmnetpair: host echo server on *:7100
+vmnetpair: network: set_ipv4_subnet 10.77.0.1/24 -> 1000
+vmnetpair: network: DHCP reservation 02:42:0c:00:00:01 -> 10.77.0.10: 1000
+vmnetpair: network: vmnet-host subnet 10.77.0.1/255.255.255.0
+vmnetpair: relay started
+vmnetpair: build started
+vmnetpair: build stopped
+vmnetpair: host side dumped to evidence/t1-host-relay/host-side.txt
+exit 0

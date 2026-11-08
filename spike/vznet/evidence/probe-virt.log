@@ -1,0 +1,28 @@
+## codesign -s - -f --entitlements ents/virt.plist bin/vmnetprobe-virt
+bin/vmnetprobe-virt: replacing existing signature
+codesign exit 0
+Executable=/Users/jeff/src/buildwarden-relay-vznet/spike/vznet/bin/vmnetprobe-virt
+## run
+pid 91543 uid 501
+bridged: networkInterfaces = [en8(DL-Dock), en0(Wi-Fi)]
+bridged: validate() refused: Error Domain=VZErrorDomain Code=2 "Using VZBridgedNetworkDeviceAttachment in a process that lacks the “com.apple.vm.networking” entitlement." UserInfo={NSLocalizedFailure=Invalid virtual machine configuration., NSLocalizedFailureReason=Using VZBridgedNetworkDeviceAttachment in a process that lacks the “com.apple.vm.networking” entitlement.}
+custom[host-default] network_create: VMNET_SUCCESS subnet 192.168.128.1/255.255.255.0
+custom[host-default] VZVmnetNetworkDeviceAttachment: created
+custom[host-isolated] set_ipv4_subnet 10.77.0.0/24: VMNET_SUCCESS
+custom[host-isolated] network_create: VMNET_SUCCESS subnet 10.77.0.0/255.255.255.0
+custom[host-isolated] VZVmnetNetworkDeviceAttachment: created
+custom[host-isolated] interface 0 start: VMNET_SUCCESS vmnet_mac_address=<string: 0x76bd064570> { string cache = 0x0, length = 17, contents = "7e:ba:8b:b6:9b:a7" } vmnet_mtu=<uint64: 0xbe7129b1069803c7>: 1500
+custom[host-isolated] interface 1 start: VMNET_SUCCESS vmnet_mac_address=<string: 0x76bd064540> { string cache = 0x0, length = 17, contents = "ae:69:88:8c:0e:ce" } vmnet_mtu=<uint64: 0xbe7129b1069803c7>: 1500
+custom[shared-default] network_create: VMNET_SUCCESS subnet 192.168.64.1/255.255.255.0
+custom[shared-default] VZVmnetNetworkDeviceAttachment: created
+custom[shared-nat-off] network_create: VMNET_FAILURE
+legacy[host] start_interface: VMNET_SUCCESS
+legacy[host+network_identifier] start_interface: VMNET_SUCCESS
+done
+exit 0
+## log show (amfid, kernel AMFI, vmnet, taskgated) since 2026-11-08 10:39:28
+Timestamp               Ty Process[PID:TID]
+2026-11-08 10:39:28.671 Df amfid[378:82c2d5] /Users/jeff/src/buildwarden-relay-vznet/spike/vznet/bin/vmnetprobe-virt not valid: Error Domain=AppleMobileFileIntegrityError Code=-423 "The file is adhoc signed or signed by an unknown certificate chain" UserInfo={NSURL=file:///Users/jeff/src/buildwarden-relay-vznet/spike/vznet/bin/vmnetprobe-virt, NSLocalizedDescription=The file is adhoc signed or signed by an unknown certificate chain}
+2026-11-08 10:39:28.798 Df syspolicyd[526:834b9f] [com.apple.syspolicy.exec:default] GK evaluateScanResult: 2, PST: (path: 9e49c426124e3633), (team: (null)), (id: vmnetprobe-virt-55554944f4f6401640133ff9addf24157010517d), (bundle_id: NOT_A_BUNDLE), 0, 0, 1, 0, 0, 0, 0
+2026-11-08 10:39:28.798 Df syspolicyd[526:834b9f] [com.apple.syspolicy.exec:default] Found provenance data on target: TA(d0b8165d334a541e, 2), PST: (path: 9e49c426124e3633), (team: (null)), (id: vmnetprobe-virt-55554944f4f6401640133ff9addf24157010517d), (bundle_id: NOT_A_BUNDLE)
+2026-11-08 10:39:28.798 Df syspolicyd[526:834b9f] [com.apple.syspolicy.exec:default] Created provenance data for target: TA(d0b8165d334a541e, 2), PST: (path: 9e49c426124e3633), (team: (null)), (id: vmnetprobe-virt-55554944f4f6401640133ff9addf24157010517d), (bundle_id: NOT_A_BUNDLE)

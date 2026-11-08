@@ -1,0 +1,25 @@
+## codesign -s - -f --entitlements ents/none.plist bin/vmnetprobe-none
+bin/vmnetprobe-none: replacing existing signature
+codesign exit 0
+Executable=/Users/jeff/src/buildwarden-relay-vznet/spike/vznet/bin/vmnetprobe-none
+## run
+pid 91481 uid 501
+bridged: networkInterfaces = [en8(DL-Dock), en0(Wi-Fi)]
+bridged: validate() refused: Error Domain=VZErrorDomain Code=2 "The process doesn’t have the “com.apple.security.virtualization” entitlement." UserInfo={NSLocalizedFailure=Invalid virtual machine configuration., NSLocalizedFailureReason=The process doesn’t have the “com.apple.security.virtualization” entitlement.}
+custom[host-default] network_create: VMNET_MEM_FAILURE
+custom[host-isolated] set_ipv4_subnet 10.77.0.0/24: VMNET_SUCCESS
+custom[host-isolated] network_create: VMNET_MEM_FAILURE
+custom[shared-default] network_create: VMNET_MEM_FAILURE
+custom[shared-nat-off] network_create: VMNET_MEM_FAILURE
+legacy[host] start_interface: VMNET_FAILURE
+legacy[host+network_identifier] start_interface: VMNET_FAILURE
+done
+exit 0
+## log show (amfid, kernel AMFI, vmnet, taskgated) since 2026-11-08 10:39:25
+Timestamp               Ty Process[PID:TID]
+2026-11-08 10:39:25.749 Df amfid[378:82c2d5] /Users/jeff/src/buildwarden-relay-vznet/spike/vznet/bin/vmnetprobe-none not valid: Error Domain=AppleMobileFileIntegrityError Code=-423 "The file is adhoc signed or signed by an unknown certificate chain" UserInfo={NSURL=file:///Users/jeff/src/buildwarden-relay-vznet/spike/vznet/bin/vmnetprobe-none, NSLocalizedDescription=The file is adhoc signed or signed by an unknown certificate chain}
+2026-11-08 10:39:25.876 Df syspolicyd[526:82daa8] [com.apple.syspolicy.exec:default] GK evaluateScanResult: 2, PST: (path: 9e49c42201341b9e), (team: (null)), (id: vmnetprobe-none-55554944f4f6401640133ff9addf24157010517d), (bundle_id: NOT_A_BUNDLE), 0, 0, 1, 0, 0, 0, 0
+2026-11-08 10:39:25.876 Df syspolicyd[526:82daa8] [com.apple.syspolicy.exec:default] Found provenance data on target: TA(d0b8165d334a541e, 2), PST: (path: 9e49c42201341b9e), (team: (null)), (id: vmnetprobe-none-55554944f4f6401640133ff9addf24157010517d), (bundle_id: NOT_A_BUNDLE)
+2026-11-08 10:39:25.876 Df syspolicyd[526:82daa8] [com.apple.syspolicy.exec:default] Created provenance data for target: TA(d0b8165d334a541e, 2), PST: (path: 9e49c42201341b9e), (team: (null)), (id: vmnetprobe-none-55554944f4f6401640133ff9addf24157010517d), (bundle_id: NOT_A_BUNDLE)
+2026-11-08 10:39:28.391 Df kernel[0:8351c9] (AppleMobileFileIntegrity) AMFI: '/private/tmp/claude-501/-Users-jeff--claude-spares-spare-IuVG08/1833c0e8-07a7-4858-8553-769c82b25d63/scratchpad/fresh2/spike/apps/hello-vz/target/aarch64-unknown-hermit/release/build/hermit-4487792199fb8af3/out/target/hermit-builtins/release/build/libm-46edaa521a851fb5/build-script-build': Unrecoverable CT signature issue, bailing out.
+2026-11-08 10:39:28.391 Df kernel[0:8351c9] (AppleMobileFileIntegrity) AMFI: code signature validation failed.

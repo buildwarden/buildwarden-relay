@@ -1,0 +1,139 @@
+## interfaces added while vmnetprobe-virt holds its networks
+vmenet0: flags=8963<UP,BROADCAST,SMART,RUNNING,PROMISC,SIMPLEX,MULTICAST> mtu 1500 index 29
+	eflags=50008080<TXSTART,ROUTER4,SENDLIST,FASTLN_ON>
+	xflags=4000000<INBAND_WAKE_PKT>
+	hwassist=100000<MULTIPAGES>
+	ether 2a:23:05:d9:0b:ce
+	media: autoselect
+	status: active
+	max mtu: 1500
+	generation id: 519
+	type: Ethernet
+	link quality: 100 (good)
+	state availability: 0 (true)
+	scheduler: UNKNOWN 
+	link rate: 100.00 Mbps
+	qosmarking enabled: yes mode: none
+	low power mode: disabled
+	multi layer packet logging (mpklog): disabled
+	routermode4: enabled
+	routermode6: enabled
+bridge100: flags=8a63<UP,BROADCAST,SMART,RUNNING,ALLMULTI,SIMPLEX,MULTICAST> mtu 1500 index 30
+	eflags=40018000<ROUTER4,CLONE,FASTLN_ON>
+	xflags=4000000<INBAND_WAKE_PKT>
+	options=3<RXCSUM,TXCSUM>
+	hwassist=100067<CSUM_IP,CSUM_TCP,CSUM_UDP,CSUM_TCPIPV6,CSUM_UDPIPV6,MULTIPAGES>
+	ether fe:b2:14:89:d1:64
+	inet 192.168.129.1 netmask 0xffffff00 broadcast 192.168.129.255
+	inet6 fe80::fcb2:14ff:fe89:d164%bridge100 prefixlen 64 scopeid 0x1e 
+	Configuration:
+		id 0:0:0:0:0:0 priority 0 hellotime 0 fwddelay 0
+		maxage 0 holdcnt 0 proto stp maxaddr 256 timeout 1200
+		root id 0:0:0:0:0:0 priority 0 ifcost 0 port 0
+		ipfilter disabled flags 0x0
+	member: vmenet0 flags=3<LEARNING,DISCOVER>
+	        ifmaxaddr 0 port 29 priority 0 path cost 0
+	        hostfilter 0 hw: 0:0:0:0:0:0 ip: 0.0.0.0
+	Address cache:
+	nd6 options=201<PERFORMNUD,DAD>
+	media: autoselect
+	status: active
+	generation id: 520
+	link quality: -1 (unknown)
+	state availability: 0 (true)
+	desc: com.apple.NetworkSharing
+	qosmarking enabled: yes mode: none
+	low power mode: disabled
+	multi layer packet logging (mpklog): disabled
+	routermode4: enabled
+	routermode6: enabled
+vmenet1: flags=8963<UP,BROADCAST,SMART,RUNNING,PROMISC,SIMPLEX,MULTICAST> mtu 1500 index 31
+	eflags=50008080<TXSTART,ROUTER4,SENDLIST,FASTLN_ON>
+	xflags=4000000<INBAND_WAKE_PKT>
+	hwassist=100000<MULTIPAGES>
+	ether a6:60:4e:45:24:59
+	media: autoselect
+	status: active
+	max mtu: 1500
+	generation id: 521
+	type: Ethernet
+	link quality: 100 (good)
+	state availability: 0 (true)
+	scheduler: UNKNOWN 
+	link rate: 100.00 Mbps
+	qosmarking enabled: yes mode: none
+	low power mode: disabled
+	multi layer packet logging (mpklog): disabled
+	routermode4: enabled
+	routermode6: enabled
+bridge101: flags=8a63<UP,BROADCAST,SMART,RUNNING,ALLMULTI,SIMPLEX,MULTICAST> mtu 1500 index 69
+	eflags=40018000<ROUTER4,CLONE,FASTLN_ON>
+	xflags=4000000<INBAND_WAKE_PKT>
+	options=3<RXCSUM,TXCSUM>
+	hwassist=100067<CSUM_IP,CSUM_TCP,CSUM_UDP,CSUM_TCPIPV6,CSUM_UDPIPV6,MULTIPAGES>
+	ether fe:b2:14:89:d1:65
+	inet 192.168.130.1 netmask 0xffffff00 broadcast 192.168.130.255
+	inet6 fe80::fcb2:14ff:fe89:d165%bridge101 prefixlen 64 scopeid 0x45 
+	Configuration:
+		id 0:0:0:0:0:0 priority 0 hellotime 0 fwddelay 0
+		maxage 0 holdcnt 0 proto stp maxaddr 256 timeout 1200
+		root id 0:0:0:0:0:0 priority 0 ifcost 0 port 0
+		ipfilter disabled flags 0x0
+	member: vmenet1 flags=3<LEARNING,DISCOVER>
+	        ifmaxaddr 0 port 31 priority 0 path cost 0
+	        hostfilter 0 hw: 0:0:0:0:0:0 ip: 0.0.0.0
+	Address cache:
+	nd6 options=201<PERFORMNUD,DAD>
+	media: autoselect
+	status: active
+	generation id: 522
+	link quality: -1 (unknown)
+	state availability: 0 (true)
+	desc: com.apple.NetworkSharing
+	qosmarking enabled: yes mode: none
+	low power mode: disabled
+	multi layer packet logging (mpklog): disabled
+	routermode4: enabled
+	routermode6: enabled
+## netstat -rn -f inet
+Routing tables
+
+Internet:
+Destination        Gateway            Flags               Netif Expire
+default            192.168.4.1        UGScg                 en0       
+default            link#30            UCSIg           bridge100      !
+default            link#69            UCSIg           bridge101      !
+127                127.0.0.1          UCS                   lo0       
+127.0.0.1          127.0.0.1          UH                    lo0       
+169.254            link#15            UCS                   en0      !
+192.168.4/22       link#15            UCS                   en0      !
+192.168.4.1/32     link#15            UCS                   en0      !
+192.168.4.1        f8:bb:bf:7c:8f:52  UHLWIir               en0   1172
+192.168.4.20       9a:6a:fe:cf:78:bf  UHLWI                 en0    948
+192.168.4.21/32    link#15            UCS                   en0      !
+192.168.4.21       86:bc:f8:a7:2:1c   UHLWI                 lo0       
+192.168.4.31       c8:3a:6b:f9:92:1d  UHLWI                 en0    767
+192.168.4.55       fe:7d:4c:ba:8f:4e  UHLWI                 en0   1109
+192.168.4.59       da:5b:83:b:36:ae   UHLWI                 en0    648
+192.168.4.123      56:33:32:7e:37:ae  UHLWI                 en0    963
+192.168.4.126      ea:fe:66:7d:a7:9e  UHLWI                 en0   1155
+192.168.4.145      32:68:f7:3e:9f:13  UHLWI                 en0   1155
+192.168.129        link#30            UC              bridge100      !
+192.168.130        link#69            UC              bridge101      !
+224.0.0/4          link#15            UmCS                  en0      !
+224.0.0.251        1:0:5e:0:0:fb      UHmLWI                en0       
+239.255.255.250    1:0:5e:7f:ff:fa    UHmLWI                en0       
+255.255.255.255/32 link#15            UCS                   en0      !
+## sysctl
+net.inet.ip.forwarding: 1
+net.inet6.ip6.forwarding: 1
+## listening sockets reachable on any address (sample)
+tcp6       0      0  *.51771                *.*                    LISTEN                 0            0  131072  131072         rapportd:688    00100 00000006 0000000000a9d3c9 00000001 00000800      1      0 000000
+tcp4       0      0  *.51771                *.*                    LISTEN                 0            0  131072  131072         rapportd:688    00100 00000006 0000000000a9d3c8 00000001 00000800      1      0 000000
+tcp4       0      0  *.443                  *.*                    LISTEN                 0            0  131072  131072 io.tailscale.ipn:1167   00180 00000006 000000000000426a 00000000 00000800      1      0 000000
+tcp6       0      0  *.443                  *.*                    LISTEN                 0            0  131072  131072 io.tailscale.ipn:1167   00180 00000006 0000000000004269 00000000 00000800      1      0 000000
+tcp46      0      0  *.11434                *.*                    LISTEN                 0            0  131072  131072           ollama:1241   00100 00000006 00000000000022d9 00000000 00000800      1      0 000000
+tcp6       0      0  *.5000                 *.*                    LISTEN                 0            0  131072  131072    ControlCenter:755    00100 00000006 000000000000159f 00000001 00000800      1      0 000000
+tcp4       0      0  *.5000                 *.*                    LISTEN                 0            0  131072  131072    ControlCenter:755    00100 00000006 000000000000159e 00000001 00000800      1      0 000000
+tcp6       0      0  *.7000                 *.*                    LISTEN                 0            0  131072  131072    ControlCenter:755    00100 00000006 000000000000159d 00000001 00000800      1      0 000000
+tcp4       0      0  *.7000                 *.*                    LISTEN                 0            0  131072  131072    ControlCenter:755    00100 00000006 000000000000159c 00000001 00000800      1      0 000000

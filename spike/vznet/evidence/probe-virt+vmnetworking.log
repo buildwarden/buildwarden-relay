@@ -1,0 +1,24 @@
+## codesign -s - -f --entitlements ents/virt+vmnetworking.plist bin/vmnetprobe-virt+vmnetworking
+bin/vmnetprobe-virt+vmnetworking: replacing existing signature
+codesign exit 0
+Executable=/Users/jeff/src/buildwarden-relay-vznet/spike/vznet/bin/vmnetprobe-virt+vmnetworking
+## run
+./run-probes.sh: line 8: 91561 Killed: 9               "./$b" 2>&1
+exit 137
+## log show (amfid, kernel AMFI, vmnet, taskgated) since 2026-11-08 10:39:31
+Timestamp               Ty Process[PID:TID]
+2026-11-08 10:39:31.801 E  amfid[378:82c2d5] [com.apple.MobileFileIntegrity.framework:default] Restricted entitlements not validated, bailing out. Error: Error Domain=AppleMobileFileIntegrityError Code=-427 "Unable to retrieve certificate chain" UserInfo={NSURL=<private>, NSLocalizedDescription=Unable to retrieve certificate chain}
+2026-11-08 10:39:31.801 E  amfid[378:82c2d5] [com.apple.MobileFileIntegrity.framework:default] Adhoc signed app with restricted entitlements detected
+2026-11-08 10:39:31.801 Df amfid[378:82c2d5] /Users/jeff/src/buildwarden-relay-vznet/spike/vznet/bin/vmnetprobe-virt+vmnetworking not valid: Error Domain=AppleMobileFileIntegrityError Code=-424 "The file is adhoc signed but contains restricted entitlements" UserInfo={NSURL=file:///Users/jeff/src/buildwarden-relay-vznet/spike/vznet/bin/vmnetprobe-virt+vmnetworking, NSLocalizedDescription=The file is adhoc signed but contains restricted entitlements}
+2026-11-08 10:39:31.935 Df syspolicyd[526:82cb9e] [com.apple.syspolicy.exec:default] GK evaluateScanResult: 2, PST: (path: bbbc65c105ee0516), (team: (null)), (id: vmnetprobe-virt+vmnetworking-55554944f4f6401640133ff9addf24157010517d), (bundle_id: NOT_A_BUNDLE), 0, 0, 1, 0, 0, 0, 0
+2026-11-08 10:39:31.935 Df syspolicyd[526:82cb9e] [com.apple.syspolicy.exec:default] Found provenance data on target: TA(d0b8165d334a541e, 2), PST: (path: bbbc65c105ee0516), (team: (null)), (id: vmnetprobe-virt+vmnetworking-55554944f4f6401640133ff9addf24157010517d), (bundle_id: NOT_A_BUNDLE)
+2026-11-08 10:39:31.935 Df syspolicyd[526:82cb9e] [com.apple.syspolicy.exec:default] Created provenance data for target: TA(d0b8165d334a541e, 2), PST: (path: bbbc65c105ee0516), (team: (null)), (id: vmnetprobe-virt+vmnetworking-55554944f4f6401640133ff9addf24157010517d), (bundle_id: NOT_A_BUNDLE)
+2026-11-08 10:39:34.323 Df kernel[0:8358ee] (AppleMobileFileIntegrity) AMFI: '/private/tmp/claude-501/-Users-jeff--claude-spares-spare-IuVG08/1833c0e8-07a7-4858-8553-769c82b25d63/scratchpad/fresh2/spike/apps/echo-vz/target/aarch64-unknown-hermit/release/build/hermit-33ea9e00ba08dade/out/target/debug/build/quote-4804a4a57b056bae/build-script-build' has no CMS blob?
+2026-11-08 10:39:34.323 Df kernel[0:8358ee] (AppleMobileFileIntegrity) AMFI: '/private/tmp/claude-501/-Users-jeff--claude-spares-spare-IuVG08/1833c0e8-07a7-4858-8553-769c82b25d63/scratchpad/fresh2/spike/apps/echo-vz/target/aarch64-unknown-hermit/release/build/hermit-33ea9e00ba08dade/out/target/debug/build/quote-4804a4a57b056bae/build-script-build': Unrecoverable CT signature issue, bailing out.
+2026-11-08 10:39:34.323 Df kernel[0:8358ee] (AppleMobileFileIntegrity) AMFI: code signature validation failed.
+2026-11-08 10:39:34.326 Df kernel[0:835902] (AppleMobileFileIntegrity) AMFI: '/private/tmp/claude-501/-Users-jeff--claude-spares-spare-IuVG08/1833c0e8-07a7-4858-8553-769c82b25d63/scratchpad/fresh2/spike/apps/echo-vz/target/aarch64-unknown-hermit/release/build/hermit-33ea9e00ba08dade/out/target/debug/build/proc-macro2-ac2029a3c632d161/build-script-build' has no CMS blob?
+2026-11-08 10:39:34.326 Df kernel[0:835902] (AppleMobileFileIntegrity) AMFI: '/private/tmp/claude-501/-Users-jeff--claude-spares-spare-IuVG08/1833c0e8-07a7-4858-8553-769c82b25d63/scratchpad/fresh2/spike/apps/echo-vz/target/aarch64-unknown-hermit/release/build/hermit-33ea9e00ba08dade/out/target/debug/build/proc-macro2-ac2029a3c632d161/build-script-build': Unrecoverable CT signature issue, bailing out.
+2026-11-08 10:39:34.326 Df kernel[0:835902] (AppleMobileFileIntegrity) AMFI: code signature validation failed.
+2026-11-08 10:39:34.327 Df kernel[0:835907] (AppleMobileFileIntegrity) AMFI: '/private/tmp/claude-501/-Users-jeff--claude-spares-spare-IuVG08/1833c0e8-07a7-4858-8553-769c82b25d63/scratchpad/fresh2/spike/apps/echo-vz/target/aarch64-unknown-hermit/release/build/hermit-33ea9e00ba08dade/out/target/debug/build/anyhow-e2f6845aa74a1ef5/build-script-build' has no CMS blob?
+2026-11-08 10:39:34.327 Df kernel[0:835907] (AppleMobileFileIntegrity) AMFI: '/private/tmp/claude-501/-Users-jeff--claude-spares-spare-IuVG08/1833c0e8-07a7-4858-8553-769c82b25d63/scratchpad/fresh2/spike/apps/echo-vz/target/aarch64-unknown-hermit/release/build/hermit-33ea9e00ba08dade/out/target/debug/build/anyhow-e2f6845aa74a1ef5/build-script-build': Unrecoverable CT signature issue, bailing out.
+2026-11-08 10:39:34.327 Df kernel[0:835907] (AppleMobileFileIntegrity) AMFI: code signature validation failed.
