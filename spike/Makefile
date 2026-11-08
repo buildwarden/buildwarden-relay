@@ -78,12 +78,12 @@ sources: $(WORK)/hermit-rs $(WORK)/loader $(WORK)/kernel
 # The patches, applied once to fresh clones in this order: the VZ boot fixes
 # (*-vz.patch), the virtio-rng driver (*-rng.patch), the vsock fixes
 # (*-vsock.patch), virtio-net on VZ's file handle attachment
-# (*-filehandle.patch) and packet sockets for the build link
-# (*-packet.patch). The *-checkpoints and *-tracing patches are the
-# boot-tracing tools; apply them by hand on top when debugging (see
-# REPORT.md, "Boot tracing").
+# (*-filehandle.patch), packet sockets for the build link (*-packet.patch)
+# and TCP half-close (*-shutdown.patch). The *-checkpoints and *-tracing
+# patches are the boot-tracing tools; apply them by hand on top when
+# debugging (see REPORT.md, "Boot tracing").
 KERNEL_PATCHES := $(addprefix patches/kernel-v0.13.2-,vz.patch rng.patch vsock.patch \
-	filehandle.patch packet.patch)
+	filehandle.patch packet.patch shutdown.patch)
 HERMIT_RS_PATCHES := $(addprefix patches/hermit-rs-0.13.2-,rng.patch packet.patch)
 $(WORK)/.patched: patches/loader-v0.5.7-vz.patch $(KERNEL_PATCHES) $(HERMIT_RS_PATCHES) \
 		| sources

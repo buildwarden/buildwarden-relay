@@ -2,7 +2,7 @@
 [            ][0][[32mINFO [0m hermit    ] Git version: v0.13.2 (dirty)
 [            ][0][[32mINFO [0m hermit    ] Architecture: aarch64
 [            ][0][[32mINFO [0m hermit    ] Enabled features: acpi, dhcpv4, kernel_stack, net, net_packet, pci, smoltcp, tcp, udp, virtio, virtio_console, virtio_net, virtio_rng
-[            ][0][[32mINFO [0m hermit    ] Built on Sun, 8 Nov 2026 18:47:34 +0000
+[            ][0][[32mINFO [0m hermit    ] Built on Sun, 8 Nov 2026 19:05:27 +0000
 [            ][0][[32mINFO [0m hermit    ] Kernel starts at 0x70200000
 [            ][0][[32mINFO [0m hermit    ] FDT:
  / {
@@ -109,16 +109,16 @@
 
     chosen {
         bootargs = [101, 110, 118, 61, 72, 69, 82, 77, 73, 84, 95, 82, 65, 87, 95, 77, 65, 67, 61, 48, 50, 58, 52, 50, 58, 48, 98, 58, 48, 48, 58, 48, 48, 58, 48, 49, 32, 45, 45, 32, 0]
-        kaslr-seed = <0x4a2e64584c2a6e1b>
+        kaslr-seed = <0xc8d08ef3713265b4>
         linux,initrd-start = <0x70030000>
-        linux,initrd-end = <0x701bb4a0>
+        linux,initrd-end = <0x701c2520>
     };
 };
 
-[            ][0][[32mINFO [0m hermit    ] BSS starts at 0x7033b8c8
+[            ][0][[32mINFO [0m hermit    ] BSS starts at 0x70341068
 [            ][0][[32mINFO [0m hermit    ] tls_info = Some(
     TlsInfo {
-        start: 0x7031b660,
+        start: 0x70320bd8,
         filesz: 0x20,
         memsz: 0x70,
         align: 0x8,
@@ -149,68 +149,68 @@
 [    0.000006][0][[32mINFO [0m processor ] Counter frequency:       24000 KHz (from CNTFRQ_EL0)
 [    0.000007][0][[32mINFO [0m processor ] ======================================================================
 [    0.000009][0][[32mINFO [0m processor ] 
-[    0.000016][0][[32mINFO [0m systemtime] Hermit booted on 2026-11-08 18:48:29.0 +00:00:00
-[    0.000021][0][[32mINFO [0m pci       ] Mapping PCI Enhanced Configuration Space interface to virtual address 0x800020000000 (size 0x10000000)
-[    0.000188][0][[32mINFO [0m pci       ] Scanning PCI Busses 0 to 255
-[    0.009378][0][[32mINFO [0m pci       ] 
-[    0.009380][0][[32mINFO [0m pci       ] ======================== PCI BUS INFORMATION =========================
-[    0.009382][0][[32mINFO [0m pci       ] 00:00 Unknown Class [0600]: Unknown Vendor Unknown Device [106B:1A05]
-[    0.009414][0][[32mINFO [0m pci       ] 00:01 Unknown Class [0200]: Unknown Vendor Unknown Device [1AF4:1041], IRQ 33, BAR0 Memory64 { address: 0x100000000, size: 0x10000, prefetchable: false }, BAR2 Memory32 { address: 0x50000000, size: 0x40, prefetchable: false }
-[    0.009451][0][[32mINFO [0m pci       ] 00:02 Unknown Class [0200]: Unknown Vendor Unknown Device [1AF4:1041], IRQ 34, BAR0 Memory64 { address: 0x100010000, size: 0x10000, prefetchable: false }, BAR2 Memory32 { address: 0x50000040, size: 0x40, prefetchable: false }
-[    0.009485][0][[32mINFO [0m pci       ] 00:05 Unknown Class [0780]: Unknown Vendor Unknown Device [1AF4:1043], IRQ 37, BAR0 Memory64 { address: 0x100020000, size: 0x10000, prefetchable: false }, BAR2 Memory32 { address: 0x50000080, size: 0x80, prefetchable: false }
-[    0.009519][0][[32mINFO [0m pci       ] 00:06 Unknown Class [1000]: Unknown Vendor Unknown Device [1AF4:1044], IRQ 38, BAR0 Memory64 { address: 0x100030000, size: 0x8000, prefetchable: false }, BAR2 Memory32 { address: 0x50000100, size: 0x40, prefetchable: false }
-[    0.009556][0][[32mINFO [0m pci       ] ======================================================================
-[    0.009557][0][[32mINFO [0m pci       ] 
-[    0.009691][0][[32mINFO [0m hermit    ] Hermit is running on common system!
-[    0.009695][0][[32mINFO [0m pci       ] Found virtio device with device id 0x1041
-[    0.009723][0][[33mWARN [0m pci       ] Currently only mapping of prefetchable bars is supported!
-[    0.009741][0][[33mWARN [0m pci       ] Currently only mapping of prefetchable bars is supported!
-[    0.009760][0][[33mWARN [0m pci       ] Currently only mapping of prefetchable bars is supported!
-[    0.009777][0][[33mWARN [0m pci       ] Currently only mapping of prefetchable bars is supported!
-[    0.009783][0][[33mWARN [0m pci       ] Device specific config from device 1041 is 17 of 24 bytes; only fields of offered features are present
-[    0.009875][0][[32mINFO [0m virtio    ] device_features = F(MTU | MAC | STATUS | INDIRECT_DESC | EVENT_IDX | VERSION_1 | RING_PACKED)
-[    0.009879][0][[32mINFO [0m virtio    ] driver_features = F(CSUM | MTU | MAC | MRG_RXBUF | STATUS | CTRL_VQ | MQ | INDIRECT_DESC | VERSION_1 | NOTIFICATION_DATA)
-[    0.009881][0][[32mINFO [0m virtio    ] common_features = F(MTU | MAC | STATUS | INDIRECT_DESC | VERSION_1)
-[    0.009914][0][[32mINFO [0m virtio    ] Features have been negotiated between virtio network device 1041 and driver.
-[    0.009988][0][[32mINFO [0m split     ] Created SplitVq: idx=0, size=256
-[    0.010197][0][[32mINFO [0m split     ] Created SplitVq: idx=1, size=256
-[    0.010199][0][[32mINFO [0m virtio    ] Network driver successfully initialized virtqueues.
-[    0.010201][0][[32mINFO [0m virtio    ] Device specific initialization for Virtio network device 1041 finished
-[    0.010206][0][[32mINFO [0m pci       ] Network device with id 1041, has been initialized by driver!
-[    0.010220][0][[32mINFO [0m pci       ] Virtio-net link is up after initialization.
-[    0.010224][0][[32mINFO [0m pci       ] Virtio network driver initialized.
-[    0.010240][0][[32mINFO [0m pci       ] Virtio interrupt handler at line 33
-[    0.010261][0][[32mINFO [0m packet    ] Network device 02-42-0b-00-00-01 serves packet sockets
-[    0.010266][0][[32mINFO [0m pci       ] Found virtio device with device id 0x1041
-[    0.010304][0][[33mWARN [0m pci       ] Currently only mapping of prefetchable bars is supported!
-[    0.010325][0][[33mWARN [0m pci       ] Currently only mapping of prefetchable bars is supported!
-[    0.010347][0][[33mWARN [0m pci       ] Currently only mapping of prefetchable bars is supported!
-[    0.010367][0][[33mWARN [0m pci       ] Currently only mapping of prefetchable bars is supported!
-[    0.010374][0][[33mWARN [0m pci       ] Device specific config from device 1041 is 17 of 24 bytes; only fields of offered features are present
-[    0.010448][0][[32mINFO [0m virtio    ] device_features = F(CSUM | GUEST_CSUM | MTU | MAC | GUEST_TSO4 | GUEST_TSO6 | HOST_TSO4 | HOST_TSO6 | STATUS | INDIRECT_DESC | EVENT_IDX | VERSION_1 | RING_PACKED)
-[    0.010450][0][[32mINFO [0m virtio    ] driver_features = F(CSUM | MTU | MAC | MRG_RXBUF | STATUS | CTRL_VQ | MQ | INDIRECT_DESC | VERSION_1 | NOTIFICATION_DATA)
-[    0.010452][0][[32mINFO [0m virtio    ] common_features = F(CSUM | MTU | MAC | STATUS | INDIRECT_DESC | VERSION_1)
-[    0.010496][0][[33mWARN [0m virtio    ] Device refused the feature set; retrying without CSUM
-[    0.010557][0][[32mINFO [0m virtio    ] device_features = F(CSUM | GUEST_CSUM | MTU | MAC | GUEST_TSO4 | GUEST_TSO6 | HOST_TSO4 | HOST_TSO6 | STATUS | INDIRECT_DESC | EVENT_IDX | VERSION_1 | RING_PACKED)
-[    0.010559][0][[32mINFO [0m virtio    ] driver_features = F(MTU | MAC | MRG_RXBUF | STATUS | CTRL_VQ | MQ | INDIRECT_DESC | VERSION_1 | NOTIFICATION_DATA)
-[    0.010561][0][[32mINFO [0m virtio    ] common_features = F(MTU | MAC | STATUS | INDIRECT_DESC | VERSION_1)
-[    0.010587][0][[32mINFO [0m virtio    ] Features have been negotiated between virtio network device 1041 and driver.
-[    0.010638][0][[32mINFO [0m split     ] Created SplitVq: idx=0, size=256
-[    0.010830][0][[32mINFO [0m split     ] Created SplitVq: idx=1, size=256
-[    0.010832][0][[32mINFO [0m virtio    ] Network driver successfully initialized virtqueues.
-[    0.010833][0][[32mINFO [0m virtio    ] Device specific initialization for Virtio network device 1041 finished
-[    0.010838][0][[32mINFO [0m pci       ] Network device with id 1041, has been initialized by driver!
-[    0.010870][0][[32mINFO [0m pci       ] Virtio-net link is up after initialization.
-[[    0.011672][0][[32mINFO [0m network   ] Try to initialize network!
-[    0.011693][0][[32mINFO [0m device    ] MAC address: 02-42-0b-00-00-03
-[    0.011695][0][[32mINFO [0m device    ] ChecksumCapabilities { ipv4: Both, udp: Both, tcp: Both, icmpv4: Both, icmpv6: Both }
-[    0.011698][0][[32mINFO [0m device    ] MTU: 1500 bytes
-[    0.011742][0][[32mINFO [0m network   ] DHCP lost config!
-[    0.011879][0][[32mINFO [0m hermit    ] Jumping into application
+[    0.000015][0][[32mINFO [0m systemtime] Hermit booted on 2026-11-08 19:06:22.0 +00:00:00
+[    0.000020][0][[32mINFO [0m pci       ] Mapping PCI Enhanced Configuration Space interface to virtual address 0x800020000000 (size 0x10000000)
+[    0.000201][0][[32mINFO [0m pci       ] Scanning PCI Busses 0 to 255
+[    0.009648][0][[32mINFO [0m pci       ] 
+[    0.009651][0][[32mINFO [0m pci       ] ======================== PCI BUS INFORMATION =========================
+[    0.009653][0][[32mINFO [0m pci       ] 00:00 Unknown Class [0600]: Unknown Vendor Unknown Device [106B:1A05]
+[    0.009686][0][[32mINFO [0m pci       ] 00:01 Unknown Class [0200]: Unknown Vendor Unknown Device [1AF4:1041], IRQ 33, BAR0 Memory64 { address: 0x100000000, size: 0x10000, prefetchable: false }, BAR2 Memory32 { address: 0x50000000, size: 0x40, prefetchable: false }
+[    0.009726][0][[32mINFO [0m pci       ] 00:02 Unknown Class [0200]: Unknown Vendor Unknown Device [1AF4:1041], IRQ 34, BAR0 Memory64 { address: 0x100010000, size: 0x10000, prefetchable: false }, BAR2 Memory32 { address: 0x50000040, size: 0x40, prefetchable: false }
+[    0.009760][0][[32mINFO [0m pci       ] 00:05 Unknown Class [0780]: Unknown Vendor Unknown Device [1AF4:1043], IRQ 37, BAR0 Memory64 { address: 0x100020000, size: 0x10000, prefetchable: false }, BAR2 Memory32 { address: 0x50000080, size: 0x80, prefetchable: false }
+[    0.009797][0][[32mINFO [0m pci       ] 00:06 Unknown Class [1000]: Unknown Vendor Unknown Device [1AF4:1044], IRQ 38, BAR0 Memory64 { address: 0x100030000, size: 0x8000, prefetchable: false }, BAR2 Memory32 { address: 0x50000100, size: 0x40, prefetchable: false }
+[    0.009836][0][[32mINFO [0m pci       ] ======================================================================
+[    0.009837][0][[32mINFO [0m pci       ] 
+[    0.009974][0][[32mINFO [0m hermit    ] Hermit is running on common system!
+[    0.009979][0][[32mINFO [0m pci       ] Found virtio device with device id 0x1041
+[    0.010007][0][[33mWARN [0m pci       ] Currently only mapping of prefetchable bars is supported!
+[    0.010025][0][[33mWARN [0m pci       ] Currently only mapping of prefetchable bars is supported!
+[    0.010045][0][[33mWARN [0m pci       ] Currently only mapping of prefetchable bars is supported!
+[    0.010062][0][[33mWARN [0m pci       ] Currently only mapping of prefetchable bars is supported!
+[    0.010068][0][[33mWARN [0m pci       ] Device specific config from device 1041 is 17 of 24 bytes; only fields of offered features are present
+[    0.010165][0][[32mINFO [0m virtio    ] device_features = F(MTU | MAC | STATUS | INDIRECT_DESC | EVENT_IDX | VERSION_1 | RING_PACKED)
+[    0.010169][0][[32mINFO [0m virtio    ] driver_features = F(CSUM | MTU | MAC | MRG_RXBUF | STATUS | CTRL_VQ | MQ | INDIRECT_DESC | VERSION_1 | NOTIFICATION_DATA)
+[    0.010171][0][[32mINFO [0m virtio    ] common_features = F(MTU | MAC | STATUS | INDIRECT_DESC | VERSION_1)
+[    0.010201][0][[32mINFO [0m virtio    ] Features have been negotiated between virtio network device 1041 and driver.
+[    0.010271][0][[32mINFO [0m split     ] Created SplitVq: idx=0, size=256
+[    0.010491][0][[32mINFO [0m split     ] Created SplitVq: idx=1, size=256
+[    0.010493][0][[32mINFO [0m virtio    ] Network driver successfully initialized virtqueues.
+[    0.010495][0][[32mINFO [0m virtio    ] Device specific initialization for Virtio network device 1041 finished
+[    0.010500][0][[32mINFO [0m pci       ] Network device with id 1041, has been initialized by driver!
+[    0.010513][0][[32mINFO [0m pci       ] Virtio-net link is up after initialization.
+[    0.010516][0][[32mINFO [0m pci       ] Virtio network driver initialized.
+[    0.010532][0][[32mINFO [0m pci       ] Virtio interrupt handler at line 33
+[    0.010551][0][[32mINFO [0m packet    ] Network device 02-42-0b-00-00-01 serves packet sockets
+[    0.010555][0][[32mINFO [0m pci       ] Found virtio device with device id 0x1041
+[    0.010584][0][[33mWARN [0m pci       ] Currently only mapping of prefetchable bars is supported!
+[    0.010603][0][[33mWARN [0m pci       ] Currently only mapping of prefetchable bars is supported!
+[    0.010622][0][[33mWARN [0m pci       ] Currently only mapping of prefetchable bars is supported!
+[    0.010640][0][[33mWARN [0m pci       ] Currently only mapping of prefetchable bars is supported!
+[    0.010646][0][[33mWARN [0m pci       ] Device specific config from device 1041 is 17 of 24 bytes; only fields of offered features are present
+[    0.010710][0][[32mINFO [0m virtio    ] device_features = F(CSUM | GUEST_CSUM | MTU | MAC | GUEST_TSO4 | GUEST_TSO6 | HOST_TSO4 | HOST_TSO6 | STATUS | INDIRECT_DESC | EVENT_IDX | VERSION_1 | RING_PACKED)
+[    0.010713][0][[32mINFO [0m virtio    ] driver_features = F(CSUM | MTU | MAC | MRG_RXBUF | STATUS | CTRL_VQ | MQ | INDIRECT_DESC | VERSION_1 | NOTIFICATION_DATA)
+[    0.010714][0][[32mINFO [0m virtio    ] common_features = F(CSUM | MTU | MAC | STATUS | INDIRECT_DESC | VERSION_1)
+[    0.010736][0][[33mWARN [0m virtio    ] Device refused the feature set; retrying without CSUM
+[    0.010812][0][[32mINFO [0m virtio    ] device_features = F(CSUM | GUEST_CSUM | MTU | MAC | GUEST_TSO4 | GUEST_TSO6 | HOST_TSO4 | HOST_TSO6 | STATUS | INDIRECT_DESC | EVENT_IDX | VERSION_1 | RING_PACKED)
+[    0.010814][0][[32mINFO [0m virtio    ] driver_features = F(MTU | MAC | MRG_RXBUF | STATUS | CTRL_VQ | MQ | INDIRECT_DESC | VERSION_1 | NOTIFICATION_DATA)
+[    0.010816][0][[32mINFO [0m virtio    ] common_features = F(MTU | MAC | STATUS | INDIRECT_DESC | VERSION_1)
+[    0.010845][0][[32mINFO [0m virtio    ] Features have been negotiated between virtio network device 1041 and driver.
+[    0.010898][0][[32mINFO [0m split     ] Created SplitVq: idx=0, size=256
+[    0.011093][0][[32mINFO [0m split     ] Created SplitVq: idx=1, size=256
+[    0.011095][0][[32mINFO [0m virtio    ] Network driver successfully initialized virtqueues.
+[    0.011096][0][[32mINFO [0m virtio    ] Device specific initialization for Virtio network device 1041 finished
+[    0.011101][0][[32mINFO [0m pci       ] Network device with id 1041, has been initialized by driver!
+[    0.011139][0][[32mINFO [0m pci       ] Virtio-net link is up after initialization.
+[[    0.011909][0][[32mINFO [0m network   ] Try to initialize network!
+[    0.011930][0][[32mINFO [0m device    ] MAC address: 02-42-0b-00-00-03
+[    0.011933][0][[32mINFO [0m device    ] ChecksumCapabilities { ipv4: Both, udp: Both, tcp: Both, icmpv4: Both, icmpv6: Both }
+[    0.011936][0][[32mINFO [0m device    ] MTU: 1500 bytes
+[    0.011982][0][[32mINFO [0m network   ] DHCP lost config!
+[    0.012121][0][[32mINFO [0m hermit    ] Jumping into application
 relay: build link open
-[    0.153437][0][[32mINFO [0m network   ] DHCP config acquired!
-[    0.153452][0][[32mINFO [0m network   ] IP address:   192.168.64.33/24
-[    0.153458][0][[32mINFO [0m network   ] Gateway:      192.168.64.1
-[    0.153463][0][[32mINFO [0m network   ] DNS server 0: 192.168.64.1
+[    0.157313][0][[32mINFO [0m network   ] DHCP config acquired!
+[    0.157327][0][[32mINFO [0m network   ] IP address:   192.168.64.33/24
+[    0.157333][0][[32mINFO [0m network   ] Gateway:      192.168.64.1
+[    0.157338][0][[32mINFO [0m network   ] DNS server 0: 192.168.64.1
 relay: 10.0.9.2:49152 -> 192.168.64.1:47100 upstream from Ok(192.168.64.33:49153)
 relay: 10.0.9.2:49152 -> 192.168.64.1:47100 closed, 14 bytes up, 14 bytes down, 6 link frames in so far

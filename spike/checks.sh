@@ -13,7 +13,8 @@
 #   vz-vsock      vsock-vz on VZ: guest->host and host->guest over virtio-vsock
 #   vz-pair       relay-vz and build-vz on VZ (vzpair): the build's TCP
 #                 connection crosses the build link to the relay's own
-#                 stack and leaves through the relay's NAT NIC
+#                 stack and leaves through the relay's NAT NIC; the build
+#                 half-closes, and the relay passes that upstream
 #   vz-pair-closed  the same, with the relay not reading the build link:
 #                 the build reaches nothing
 #
@@ -168,6 +169,7 @@ pair vz-pair "" 60
 from=$(grep "echo server: connection from" "$out/vz-pair-vzpair.log" | head -1 | sed 's/.*from //')
 grep -a -q "Network device 02-42-0b-00-00-01 serves packet sockets" "$out/vz-pair-relay.log" &&
 	grep -a -q "closed, 14 bytes up, 14 bytes down" "$out/vz-pair-relay.log" &&
+	grep -a -q "build: reply ended after 14 bytes" "$out/vz-pair-build.log" &&
 	grep -a -q "build: echo: build says hi" "$out/vz-pair-build.log" &&
 	case $from in 192.168.64.*) true ;; *) false ;; esac
 result vz-pair $? "build 10.0.9.2 -> relay -> host, which saw ${from:-nothing}"

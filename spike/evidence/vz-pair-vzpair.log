@@ -1,6 +1,6 @@
 vzpair: echo server on port 47100
-vzpair: build started
 vzpair: relay started
+vzpair: build started
 vzpair: echo server: connection from 192.168.64.33:49153
 vzpair: echo server: 192.168.64.33 done, 14 bytes echoed
 vzpair: build stopped

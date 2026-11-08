@@ -3,7 +3,7 @@ use hermit as _;
 
 use std::collections::VecDeque;
 use std::io::{ErrorKind, Read, Write};
-use std::net::{SocketAddr, TcpStream};
+use std::net::{Shutdown, SocketAddr, TcpStream};
 use std::thread::sleep;
 use std::time::{Duration, Instant as StdInstant};
 
@@ -111,7 +111,8 @@ struct Conn {
 	up: usize,
 	down: usize,
 	upstream_eof: bool,
-	closed_upstream: bool,
+	/// Whether the build's FIN has been passed upstream.
+	upstream_shut: bool,
 }
 
 fn listening_socket(port: u16) -> tcp::Socket<'static> {
@@ -192,7 +193,7 @@ fn main() {
 					up: 0,
 					down: 0,
 					upstream_eof: false,
-					closed_upstream: false,
+					upstream_shut: false,
 				});
 			}
 		}
@@ -202,8 +203,9 @@ fn main() {
 		for conn in &mut conns {
 			let sock = sockets.get_mut::<tcp::Socket>(conn.handle);
 			if conn.upstream.is_none()
-				&& !conn.closed_upstream
-				&& sock.state() == tcp::State::Established
+				// CloseWait too: a build that sends and half-closes at once is
+				// past Established by the time the relay looks.
+				&& matches!(sock.state(), tcp::State::Established | tcp::State::CloseWait)
 			{
 				let (Some(local), Some(remote)) = (sock.local_endpoint(), sock.remote_endpoint())
 				else {
@@ -245,14 +247,13 @@ fn main() {
 				}
 				conn.up += n;
 			}
-			// The build has finished sending. Hermit's shutdown() is a no-op,
-			// so the upstream cannot be half-closed: close both directions.
-			if !sock.may_recv() && sock.recv_queue() == 0 && !conn.upstream_eof {
-				conn.upstream_eof = true;
-				sock.close();
-				conn.upstream = None;
-				conn.closed_upstream = true;
-				continue;
+			// The build has finished sending: pass its FIN upstream and keep
+			// relaying the reply until the upstream's own EOF.
+			if !sock.may_recv() && sock.recv_queue() == 0 && !conn.upstream_shut {
+				conn.upstream_shut = true;
+				if let Err(err) = stream.shutdown(Shutdown::Write) {
+					println!("relay: {} upstream shutdown failed: {err}", conn.route);
+				}
 			}
 
 			// upstream -> build
@@ -283,7 +284,7 @@ fn main() {
 			let sock = sockets.get::<tcp::Socket>(conn.handle);
 			let done = sock.state() == tcp::State::Closed;
 			if done {
-				if conn.upstream.is_some() || conn.closed_upstream {
+				if conn.upstream.is_some() {
 					println!(
 						"relay: {} closed, {} bytes up, {} bytes down, {} link frames in so far",
 						conn.route, conn.up, conn.down, link.frames_in

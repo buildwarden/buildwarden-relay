@@ -2,7 +2,7 @@
 use hermit as _;
 
 use std::io::{Read, Write};
-use std::net::{SocketAddr, TcpStream};
+use std::net::{Shutdown, SocketAddr, TcpStream};
 use std::thread::sleep;
 use std::time::Duration;
 
@@ -30,14 +30,14 @@ fn main() {
 		return;
 	};
 
+	// Send, half-close, then read the reply to the end: what a client that
+	// signals the end of its request with a FIN does.
 	stream.write_all(b"build says hi\n").unwrap();
-	let mut buf = [0u8; 256];
+	stream.shutdown(Shutdown::Write).unwrap();
 	let mut got = Vec::new();
-	while !got.ends_with(b"\n") {
-		match stream.read(&mut buf) {
-			Ok(0) | Err(_) => break,
-			Ok(n) => got.extend_from_slice(&buf[..n]),
-		}
+	match stream.read_to_end(&mut got) {
+		Ok(_) => println!("build: reply ended after {} bytes", got.len()),
+		Err(err) => println!("build: read failed: {err}"),
 	}
 	println!("build: echo: {}", String::from_utf8_lossy(&got).trim_end());
 	drop(stream);

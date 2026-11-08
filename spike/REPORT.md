@@ -86,8 +86,8 @@ VZ). vsock works on VZ too.
 ## Patches
 
 All patches are in `patches/`. `make patched` applies the fix patches to
-fresh clones: the loader's, the kernel's five (VZ boot, entropy, vsock, VZ's
-file handle attachment, packet sockets, in that order) and two one-line
+fresh clones: the loader's, the kernel's six (VZ boot, entropy, vsock, VZ's
+file handle attachment, packet sockets, TCP half-close, in that order) and two one-line
 hermit-rs patches that forward the new `virtio-rng` and `net-packet`
 features.
 
@@ -183,6 +183,25 @@ syscall layer's `sockaddr` conversion, written like the existing arms
 beside them. The device driver is the existing virtio-net driver,
 unchanged: the build NIC is a second instance of it, not new driver code.
 
+### Kernel: `patches/kernel-v0.13.2-shutdown.patch`, TCP half-close
+
+Hermit's TCP sockets could not be half-closed: `shutdown()` returned success
+and did nothing, and three other paths treated a half-open connection as
+closed. Not VZ-specific; found by the relay prototype, which has to pass a
+build's FIN upstream and still relay the reply.
+
+| Was | Now |
+|---|---|
+| `shutdown()` a no-op for every direction | `SHUT_WR` sends a FIN once the send buffer drains and keeps receiving; `SHUT_RD` makes reads return 0; `ENOTCONN` on a closed socket |
+| `read()` returns `EIO` in FinWait1/FinWait2, so the reply after our FIN is lost | Reads until the buffer is empty and the peer's FIN has arrived, then 0 |
+| `write()` returns 0 in CloseWait, so a server cannot answer a client that half-closed | CloseWait sends; after our own FIN, or on a closed socket, `EPIPE` |
+| `poll()` reports `POLLHUP` in FinWait1/FinWait2 | Reports whether data is waiting |
+
+`vz-pair` covers the first three rows from the client side: the build
+half-closes and reads the reply to EOF, and the relay's upstream socket
+does the same towards the host. The CloseWait write (a Hermit server
+answering after the client's FIN) is not exercised by any check yet.
+
 ### Boot tracing (debugging only)
 
 `patches/loader-vz-checkpoints.patch` and `patches/kernel-vz-tracing-wip.patch`
@@ -245,11 +264,10 @@ dumps, captured with a Linux probe guest (`probe/`):
    the driver busy-polls and moves 8 KiB packets.
 5. Upstream nightly `nightly-2026-11-01` builds a loader that hangs
    mid-print on Qemu; `nightly-2026-08-15` (near the loader release) works.
-6. **Hermit's TCP `shutdown()` is a no-op**, so a socket cannot be
-   half-closed. The relay prototype closes both directions when the build
-   finishes sending. A request/response client is unaffected, but one that
-   half-closes and then waits for the reply loses the reply. This needs a
-   kernel fix before the real relay.
+6. **Hermit's TCP could not half-close (fixed in the follow-up).**
+   `shutdown()` was a no-op, a half-closed socket could not read its reply,
+   and a server could not answer a client that had half-closed
+   (`patches/kernel-v0.13.2-shutdown.patch`).
 7. **`connect_timeout` does not time out** while the gateway's ARP goes
    unanswered (seen in `vz-pair-closed`: the build's 1-second connects never
    returned). Harmless for the relay, which only dials out over NAT, but an
@@ -314,7 +332,9 @@ dumps, captured with a Linux probe guest (`probe/`):
     app defines the constants itself rather than patching `hermit-abi`.
 14. **The relay prototype is minimal on purpose:** one thread polling every
     millisecond, a listener created per port as each SYN arrives, TCP only,
-    and a blocking upstream dial. It proves the path, not the relay's
+    and a blocking upstream dial. It dials once a build connection reaches
+    Established or CloseWait, since a build that sends and half-closes at
+    once is already in CloseWait when the relay looks. It proves the path, not the relay's
     design. The fixes tried while finding the buffer size (header and frame
     in one descriptor, indirect descriptors, filling RX after `DRIVER_OK`,
     padding short frames) did not help and are not in the patches.
@@ -327,8 +347,8 @@ dumps, captured with a Linux probe guest (`probe/`):
 2. ~~Entropy.~~ Answered 2026-11-07: in scope; done here.
 3. **Upstreaming.** May I open issues and PRs on `hermit-os/kernel`
    (fixes 1–9, the entropy driver, the vsock fixes, the file handle NIC
-   fixes, packet sockets, and issues for the packed rings, `shutdown()` and
-   `connect_timeout`)
+   fixes, packet sockets, TCP half-close, and issues for the packed rings
+   and `connect_timeout`)
    and `hermit-os/loader`
    (`aarch64-vz`, ideally as a PIE loader)? Until they land, the patches stay
    here (see "Carrying the patches").
@@ -376,16 +396,19 @@ build VM                      relay VM                                host
 What `vz-pair` shows: the build (`10.0.9.2`, gateway `10.0.9.1`) connects to
 `192.168.64.1:47100`, the host's NAT address. The relay accepts the
 connection for that foreign address, dials it from its own lease, and the
-host's echo server logs the relay's NAT address as the peer. 14 bytes go
-each way, and both sides close.
+host's echo server logs the relay's NAT address as the peer. The build
+sends 14 bytes and half-closes; the relay passes the FIN upstream, the host
+echoes and closes, and the build reads the 14 bytes back to EOF.
 
 The size came in under the estimate: about 265 kernel lines (packet sockets)
 plus 16 (the file-handle fixes), against 500–800 estimated. The relay app is
 about 300 lines.
 
 Open before the real relay:
-- **Half-close** (finding 6) and **UDP/DNS**: the prototype relays TCP only.
-  DNS from the build would need the relay to answer it.
+- **UDP/DNS:** the prototype relays TCP only. DNS from the build would need
+  the relay to answer it. (Half-close works, after the shutdown patch: the
+  relay passes the build's FIN upstream and relays the reply until the
+  upstream's own FIN.)
 - **Throughput:** the relay app polls every millisecond and copies each frame
   twice. Not measured.
 - **Other hypervisors:** the packet socket is generic virtio-net. The 1530-byte
@@ -407,7 +430,7 @@ consumed through Cargo's `[patch]`. Still no long-lived fork.
 |---|---|
 | `Makefile` | `make checks` builds everything from the pinned tags plus patches and runs the checks; `stock`, `vz-stock`, `stubs`, `probe`, `probe-sibling` rerun the earlier experiments |
 | `checks.sh` | The eleven checks |
-| `patches/` | Loader, kernel (VZ, entropy, vsock, file handle NIC, packet sockets) and hermit-rs fixes; boot-tracing patches |
+| `patches/` | Loader, kernel (VZ, entropy, vsock, file handle NIC, packet sockets, TCP half-close) and hermit-rs fixes; boot-tracing patches |
 | `apps/` | `hello-vz` (Stage A), `echo-vz` (Stage B), `entropy-vz`, `vsock-vz`, `relay-vz` and `build-vz` (the second NIC) |
 | `vzpair/` | Swift runner for the relay and build VMs joined by a socketpair, with a host echo server as the destination |
 | `vzrun/` | Swift VZ runner (Linux boot loader, virtio console to a file, NAT, optional fixed MAC, entropy device unless `--no-rng`, vsock test with `--vsock`) |
