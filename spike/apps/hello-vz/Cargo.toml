@@ -9,6 +9,6 @@ publish = false
 # the output before the guest powers off.
 
 [target.'cfg(target_os = "hermit")'.dependencies]
-hermit = { path = "../../.work/hermit-rs/hermit", default-features = false, features = ["acpi", "pci", "virtio-console"] }
+hermit = { path = "../../.work/hermit-rs/hermit", default-features = false, features = ["acpi", "pci", "virtio-console", "virtio-rng"] }
 
 [workspace]

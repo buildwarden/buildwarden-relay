@@ -7,9 +7,17 @@
 #   qemu-net      echo-vz, Qemu virt, modern virtio-net, host port forward
 #   vz-hello      exit criterion A: hello-vz on VZ, virtio console
 #   vz-net        exit criterion B: echo-vz on VZ NAT, DHCP lease, host->guest
+#   qemu-rng      entropy-vz, Qemu virt, seeded from virtio-rng
+#   vz-rng        entropy-vz on VZ twice, seeded from virtio-rng, values differ
+#   vz-norng      entropy-vz on VZ without an entropy device: fails closed
+#   vz-vsock      vsock-vz on VZ: guest->host and host->guest over virtio-vsock
+#
+# Every Qemu run has a virtio-rng device: the patched kernel fails closed
+# without an entropy source, and std then panics before main.
 #
 # vz-net connects to the guest's NAT address, so run it from a terminal with
-# macOS Local Network permission. Exit status: the number of failures.
+# macOS Local Network permission; vz-vsock needs none. Exit status: the
+# number of failures.
 #
 # usage: checks.sh <out dir>
 set -u
@@ -21,6 +29,8 @@ img=$here/out/hermit-loader-vz.Image
 hello=$here/.work/hermit-rs/target/aarch64-unknown-hermit/release/hello_world
 hellovz=$here/apps/hello-vz/target/aarch64-unknown-hermit/release/hello-vz
 echovz=$here/apps/echo-vz/target/aarch64-unknown-hermit/release/echo-vz
+entropyvz=$here/apps/entropy-vz/target/aarch64-unknown-hermit/release/entropy-vz
+vsockvz=$here/apps/vsock-vz/target/aarch64-unknown-hermit/release/vsock-vz
 fails=0
 
 result() { # name ok detail
@@ -32,7 +42,8 @@ qemu() {
 	name=$1
 	shift
 	qemu-system-aarch64 -machine virt,gic-version=3 -accel hvf -cpu host -smp 1 -m 512M \
-		-display none -semihosting -serial "file:$out/$name-uart.log" -kernel "$elf" "$@" \
+		-display none -semihosting -serial "file:$out/$name-uart.log" -kernel "$elf" \
+		-device virtio-rng-pci,disable-legacy=on "$@" \
 		2> "$out/$name-qemu.log" &
 	qpid=$!
 }
@@ -98,5 +109,40 @@ kill "$vpid" 2>/dev/null
 wait "$vpid" 2>/dev/null
 [ -n "$ip" ] && [ "$got" = "$want" ]
 result vz-net $? "lease ${ip:-none} for $mac, host->guest echo: '$got'"
+
+# The 32 random bytes entropy-vz printed to log $1, if std then ran.
+entropy() {
+	grep -a -q "hashmap: ok" "$1" && grep -a "^entropy: [0-9a-f]\{64\}" "$1" | cut -d' ' -f2
+}
+
+qemu qemu-rng -nic none -device "guest-loader,addr=0x48000000,initrd=$entropyvz"
+reap "$qpid" 15
+e=$(entropy "$out/qemu-rng-uart.log")
+grep -a -q "Virtio entropy device" "$out/qemu-rng-uart.log" && [ -n "$e" ]
+result qemu-rng $? "seeded from virtio-rng: ${e:-none}"
+
+for n in 1 2; do
+	"$here/out/vzrun" "$img" "$entropyvz" --console "$out/vz-rng$n-console.log" --seconds 15 \
+		> "$out/vz-rng$n-vzrun.log" 2>&1
+done
+e1=$(entropy "$out/vz-rng1-console.log")
+e2=$(entropy "$out/vz-rng2-console.log")
+grep -a -q "Virtio entropy device" "$out/vz-rng1-console.log" && [ -n "$e1" ] && [ -n "$e2" ] &&
+	[ "$e1" != "$e2" ]
+result vz-rng $? "two boots: ${e1:-none} ${e2:-none}"
+
+"$here/out/vzrun" "$img" "$entropyvz" --no-rng --console "$out/vz-norng-console.log" \
+	--seconds 15 > "$out/vz-norng-vzrun.log" 2>&1
+grep -a -q "No entropy source" "$out/vz-norng-console.log" &&
+	! grep -a -q -E "^entropy: |hashmap: ok" "$out/vz-norng-console.log"
+result vz-norng $? "no entropy device: the kernel refuses and the app does not run"
+
+"$here/out/vzrun" "$img" "$vsockvz" --vsock --console "$out/vz-vsock-console.log" --seconds 20 \
+	> "$out/vz-vsock-vzrun.log" 2>&1
+grep -q "said: guest says hi" "$out/vz-vsock-vzrun.log" &&
+	grep -a -q "host replied: host says hi" "$out/vz-vsock-console.log" &&
+	grep -q "vsock: echo ok" "$out/vz-vsock-vzrun.log" &&
+	grep -a -q "vsock: echo done" "$out/vz-vsock-console.log"
+result vz-vsock $? "guest->host port 5001 and host->guest port 5000 echo"
 
 exit "$fails"

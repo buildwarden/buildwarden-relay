@@ -41,6 +41,8 @@ LOADER_IMG := $(OUT)/hermit-loader-vz.Image
 HELLO      := $(WORK)/hermit-rs/target/aarch64-unknown-hermit/release/hello_world
 HELLO_VZ   := apps/hello-vz/target/aarch64-unknown-hermit/release/hello-vz
 ECHO_VZ    := apps/echo-vz/target/aarch64-unknown-hermit/release/echo-vz
+ENTROPY_VZ := apps/entropy-vz/target/aarch64-unknown-hermit/release/entropy-vz
+VSOCK_VZ   := apps/vsock-vz/target/aarch64-unknown-hermit/release/vsock-vz
 # Stock release artifacts, for the unpatched attempts.
 STOCK_LOADER := $(WORK)/release-$(LOADER_TAG)/hermit-loader-aarch64-elf
 STOCK_HELLO  := $(WORK)/fixture-$(LOADER_TAG)/hello_world
@@ -70,12 +72,17 @@ $(WORK)/kernel:
 
 sources: $(WORK)/hermit-rs $(WORK)/loader $(WORK)/kernel
 
-# The VZ patches, applied once to fresh clones (patches/*-vz.patch). The
-# *-checkpoints and *-tracing patches are the boot-tracing tools; apply them
-# by hand on top when debugging (see REPORT.md, "Boot tracing").
-$(WORK)/.patched: patches/loader-v0.5.7-vz.patch patches/kernel-v0.13.2-vz.patch | sources
+# The patches, applied once to fresh clones in this order: the VZ boot fixes
+# (*-vz.patch), the virtio-rng driver (*-rng.patch) and the vsock fixes
+# (*-vsock.patch). The *-checkpoints and *-tracing patches are the
+# boot-tracing tools; apply them by hand on top when debugging (see
+# REPORT.md, "Boot tracing").
+KERNEL_PATCHES := $(addprefix patches/kernel-v0.13.2-,vz.patch rng.patch vsock.patch)
+$(WORK)/.patched: patches/loader-v0.5.7-vz.patch $(KERNEL_PATCHES) \
+		patches/hermit-rs-0.13.2-rng.patch | sources
 	git -C $(WORK)/loader apply $(abspath patches/loader-v0.5.7-vz.patch)
-	git -C $(WORK)/kernel apply $(abspath patches/kernel-v0.13.2-vz.patch)
+	for p in $(abspath $(KERNEL_PATCHES)); do git -C $(WORK)/kernel apply $$p || exit 1; done
+	git -C $(WORK)/hermit-rs apply $(abspath patches/hermit-rs-0.13.2-rng.patch)
 	touch $@
 patched: $(WORK)/.patched
 
@@ -86,21 +93,25 @@ loader: $(WORK)/.patched
 	mkdir -p $(OUT)
 	$(LLVM)/llvm-objcopy -O binary $(LOADER_VZ) $(LOADER_IMG)
 
-# Upstream hello_world, and the spike's two apps (apps/).
+# Upstream hello_world, and the spike's apps (apps/). Every app has the
+# virtio-rng driver: without an entropy source the kernel fails closed and
+# Rust's std panics before main.
 apps: $(WORK)/.patched
-	cd $(WORK)/hermit-rs && $(HERMIT_BUILD) -p hello_world --features hermit/virtio-console
-	cd apps/hello-vz && $(HERMIT_BUILD)
-	cd apps/echo-vz && $(HERMIT_BUILD)
+	cd $(WORK)/hermit-rs && $(HERMIT_BUILD) -p hello_world \
+		--features hermit/virtio-console,hermit/virtio-rng
+	for app in hello-vz echo-vz entropy-vz vsock-vz; do \
+		(cd apps/$$app && $(HERMIT_BUILD)) || exit 1; done
 
 # Step 0.4: the Qemu/HVF baseline from source.
 qemu: loader apps
 	qemu-system-aarch64 -machine virt,gic-version=3 -accel hvf -cpu host \
 		-smp 1 -m 512M -display none -serial stdio -semihosting \
-		-kernel $(LOADER_ELF) \
+		-kernel $(LOADER_ELF) -device virtio-rng-pci,disable-legacy=on \
 		-device guest-loader,addr=0x48000000,initrd=$(HELLO)
 
 # The acceptance checks, both exit criteria among them (checks.sh). vz-net
-# needs macOS Local Network permission for the terminal running it.
+# needs macOS Local Network permission for the terminal running it; vz-vsock
+# does not.
 checks: loader apps $(VZRUN)
 	sh checks.sh $(OUT)/checks
 

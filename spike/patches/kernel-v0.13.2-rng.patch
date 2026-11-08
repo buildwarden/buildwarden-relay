@@ -1,0 +1,426 @@
+From 0b0d1e3b3548d4c7c174e312caae704af13db354 Mon Sep 17 00:00:00 2001
+From: Jeff Edwards <jeff@edwardsj.com>
+Date: Sat, 7 Nov 2026 17:05:09 -0800
+Subject: [PATCH] entropy: seed from virtio-rng and fail closed without a
+ source
+
+aarch64 has no seed_entropy(), so sys_read_entropy fell back to a 31-bit
+Park-Miller-Lehmer generator seeded from the boot timer: guessable bytes
+behind an interface that promises cryptographically secure ones. Add a
+virtio entropy (virtio-rng) PCI driver behind the virtio-rng feature, seed
+the ChaCha pool from it when the processor offers nothing, and return the
+error instead of the weak bytes when there is no source at all. smoltcp's
+seed (TCP initial sequence numbers, ephemeral ports) now comes from the
+pool too, with the wall clock only as a logged last resort.
+---
+ Cargo.toml                          |   4 +
+ src/drivers/mod.rs                  |   2 +
+ src/drivers/pci.rs                  |   7 ++
+ src/drivers/rng/mod.rs              | 178 ++++++++++++++++++++++++++++
+ src/drivers/virtio/mod.rs           |   2 +
+ src/drivers/virtio/transport/pci.rs |  17 +++
+ src/entropy.rs                      |  20 +++-
+ src/executor/device.rs              |  13 +-
+ src/syscalls/entropy.rs             |  13 +-
+ 9 files changed, 243 insertions(+), 13 deletions(-)
+ create mode 100644 src/drivers/rng/mod.rs
+
+diff --git a/Cargo.toml b/Cargo.toml
+index 5aa66a2..3d7e3a8 100644
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -184,6 +184,10 @@ virtio-fs = ["virtio", "dep:fuse-abi", "fuse-abi/num_enum"]
+ ## Enables the virtio-vsock driver.
+ virtio-vsock = ["virtio", "pci"]
+ 
++## Enables the virtio entropy (virtio-rng) driver, which seeds the random number
++## generator where the processor has no random instruction, as on aarch64.
++virtio-rng = ["virtio", "pci"]
++
+ #! ### Other Drivers
+ 
+ ## Enables the _Video Graphics Array_ (VGA) driver.
+diff --git a/src/drivers/mod.rs b/src/drivers/mod.rs
+index 66cee6a..748d144 100644
+--- a/src/drivers/mod.rs
++++ b/src/drivers/mod.rs
+@@ -10,6 +10,8 @@ pub mod mmio;
+ pub mod net;
+ #[cfg(feature = "pci")]
+ pub mod pci;
++#[cfg(feature = "virtio-rng")]
++pub mod rng;
+ #[cfg(feature = "virtio")]
+ pub mod virtio;
+ #[cfg(feature = "virtio-vsock")]
+diff --git a/src/drivers/pci.rs b/src/drivers/pci.rs
+index bfd574c..af9fefd 100644
+--- a/src/drivers/pci.rs
++++ b/src/drivers/pci.rs
+@@ -438,6 +438,11 @@ pub(crate) fn get_interrupt_handlers() -> HashMap<InterruptLine, InterruptHandle
+ 		handlers.entry(irq_number).or_default().push_back(handler);
+ 	}
+ 
++	#[cfg(feature = "virtio-rng")]
++	if let Some((irq_number, handler)) = crate::drivers::rng::interrupt_handler() {
++		handlers.entry(irq_number).or_default().push_back(handler);
++	}
++
+ 	#[cfg(any(feature = "rtl8139", feature = "virtio-net"))]
+ 	if let Some(device) = NETWORK_DEVICE.lock().as_ref() {
+ 		handlers
+@@ -510,6 +515,8 @@ pub(crate) fn init() {
+ 				}
+ 				#[cfg(all(not(feature = "rtl8139"), feature = "virtio-net"))]
+ 				Ok(VirtioDriver::Net(drv)) => *crate::executor::device::NETWORK_DEVICE.lock() = Some(*drv),
++				#[cfg(feature = "virtio-rng")]
++				Ok(VirtioDriver::Rng(drv)) => crate::drivers::rng::install(*drv),
+ 				#[cfg(feature = "virtio-vsock")]
+ 				Ok(VirtioDriver::Vsock(drv)) => {
+ 					register_driver(PciDriver::VirtioVsock(InterruptTicketMutex::new(*drv)));
+diff --git a/src/drivers/rng/mod.rs b/src/drivers/rng/mod.rs
+new file mode 100644
+index 0000000..14de0ea
+--- /dev/null
++++ b/src/drivers/rng/mod.rs
+@@ -0,0 +1,178 @@
++//! A driver for the virtio entropy device, which seeds the kernel's random
++//! number generator on platforms whose processor has no random instruction.
++//!
++//! See Virtio specification v1.2 - 5.4.
++
++use alloc::vec::Vec;
++
++use hermit_sync::InterruptTicketMutex;
++use pci_types::InterruptLine;
++use smallvec::SmallVec;
++
++use crate::arch::pci::PciConfigRegion;
++use crate::drivers::Driver;
++use crate::drivers::pci::PciDevice;
++use crate::drivers::virtio::ControlRegisters;
++use crate::drivers::virtio::error::VirtioError;
++use crate::drivers::virtio::transport::pci;
++use crate::drivers::virtio::transport::pci::{ComCfg, IsrStatus, NotifCfg};
++use crate::drivers::virtio::virtqueue::split::SplitVq;
++use crate::drivers::virtio::virtqueue::{
++	AvailBufferToken, BufferElem, BufferType, VirtQueue, Virtq,
++};
++use crate::mm::device_alloc::DeviceAlloc;
++
++/// The number of descriptors in the request queue; requests are synchronous,
++/// so one would do.
++const QUEUE_SIZE: u16 = 8;
++
++/// The number of requests that may come back empty before [`fill`] gives up.
++const MAX_EMPTY_REQUESTS: usize = 64;
++
++static RNG_DRIVER: InterruptTicketMutex<Option<VirtioRngDriver>> = InterruptTicketMutex::new(None);
++
++pub(crate) struct VirtioRngDriver {
++	dev_id: u16,
++	com_cfg: ComCfg,
++	isr_stat: IsrStatus,
++	notif_cfg: NotifCfg,
++	irq: InterruptLine,
++	request_vq: Option<VirtQueue>,
++}
++
++impl Driver for VirtioRngDriver {
++	fn get_interrupt_number(&self) -> InterruptLine {
++		self.irq
++	}
++
++	fn get_name(&self) -> &'static str {
++		"virtio"
++	}
++}
++
++impl VirtioRngDriver {
++	/// Maps the device's capabilities and brings the device up.
++	pub(crate) fn init(device: &PciDevice<PciConfigRegion>) -> Result<Self, VirtioError> {
++		let caps = pci::map_caps(device)?;
++		let mut drv = VirtioRngDriver {
++			dev_id: device.device_id(),
++			com_cfg: caps.com_cfg,
++			isr_stat: caps.isr_cfg,
++			notif_cfg: caps.notif_cfg,
++			irq: device.get_irq().unwrap(),
++			request_vq: None,
++		};
++
++		if let Err(err) = drv.init_dev() {
++			drv.com_cfg.set_failed();
++			return Err(err);
++		}
++
++		Ok(drv)
++	}
++
++	/// Initializes the device in adherence to specification v1.2 - 3.1.1.
++	fn init_dev(&mut self) -> Result<(), VirtioError> {
++		self.com_cfg.reset_dev();
++		self.com_cfg.ack_dev();
++		self.com_cfg.set_drv();
++
++		let minimal_features = virtio::F::VERSION_1;
++		let negotiated_features = self
++			.com_cfg
++			.control_registers()
++			.negotiate_features(minimal_features);
++		if !negotiated_features.contains(minimal_features) {
++			error!("The virtio entropy device does not offer VERSION_1. Aborting!");
++			return Err(VirtioError::DevNotSupported(self.dev_id));
++		}
++
++		self.com_cfg.features_ok();
++		if !self.com_cfg.check_features() {
++			error!("The virtio entropy device did not accept our features. Aborting!");
++			return Err(VirtioError::DevNotSupported(self.dev_id));
++		}
++
++		let mut vq = VirtQueue::Split(
++			SplitVq::new(
++				&mut self.com_cfg,
++				&self.notif_cfg,
++				QUEUE_SIZE,
++				0,
++				negotiated_features,
++			)
++			.map_err(|_| VirtioError::DevNotSupported(self.dev_id))?,
++		);
++		// Requests are polled, so the device needs not interrupt.
++		vq.disable_notifs();
++		self.request_vq = Some(vq);
++
++		self.com_cfg.drv_ok();
++		Ok(())
++	}
++
++	/// Fills `buf` with bytes from the device, returning false if the device
++	/// keeps answering with none.
++	fn fill(&mut self, buf: &mut [u8]) -> bool {
++		let vq = self.request_vq.as_mut().unwrap();
++		let mut filled = 0;
++		let mut empty = 0;
++		while filled < buf.len() {
++			let want = buf.len() - filled;
++			let mut recv = SmallVec::new();
++			recv.push(BufferElem::Vector(Vec::with_capacity_in(want, DeviceAlloc)));
++			let tkn = AvailBufferToken::new(SmallVec::new(), recv).unwrap();
++			let Ok(mut used) = vq.dispatch_blocking(tkn, BufferType::Direct) else {
++				return false;
++			};
++			// dispatch_blocking turns notifications back on.
++			vq.disable_notifs();
++
++			let bytes = used.used_recv_buff.pop_front_vec();
++			let n = bytes.as_ref().map_or(0, |bytes| bytes.len().min(want));
++			if n == 0 {
++				empty += 1;
++				if empty == MAX_EMPTY_REQUESTS {
++					return false;
++				}
++				continue;
++			}
++			buf[filled..filled + n].copy_from_slice(&bytes.unwrap()[..n]);
++			filled += n;
++		}
++
++		true
++	}
++
++	fn handle_interrupt(&mut self) {
++		self.isr_stat.acknowledge();
++	}
++}
++
++/// Installs the driver that [`fill`] reads from.
++pub(crate) fn install(drv: VirtioRngDriver) {
++	info!(
++		"Virtio entropy device {:x} seeds the random number generator",
++		drv.dev_id
++	);
++	RNG_DRIVER.lock().replace(drv);
++}
++
++/// Fills `buf` from the virtio entropy device, returning false when there is
++/// no device or it fails.
++pub(crate) fn fill(buf: &mut [u8]) -> bool {
++	RNG_DRIVER.lock().as_mut().is_some_and(|drv| drv.fill(buf))
++}
++
++/// The device's interrupt line and its handler, which only acknowledges it;
++/// the queue's notifications are off, but a device may interrupt anyway.
++pub(crate) fn interrupt_handler() -> Option<(InterruptLine, fn())> {
++	fn rng_handler() {
++		if let Some(drv) = RNG_DRIVER.lock().as_mut() {
++			drv.handle_interrupt();
++		}
++	}
++
++	let irq = RNG_DRIVER.lock().as_ref()?.get_interrupt_number();
++	Some((irq, rng_handler))
++}
+diff --git a/src/drivers/virtio/mod.rs b/src/drivers/virtio/mod.rs
+index caaae14..99dca3a 100644
+--- a/src/drivers/virtio/mod.rs
++++ b/src/drivers/virtio/mod.rs
+@@ -7,6 +7,7 @@
+ 		feature = "virtio-console",
+ 		feature = "virtio-fs",
+ 		feature = "virtio-net",
++		feature = "virtio-rng",
+ 		feature = "virtio-vsock"
+ 	)),
+ 	allow(dead_code)
+@@ -30,6 +31,7 @@ impl VirtioIdExt for virtio::Id {
+ 			Self::Console => "virtio-console",
+ 			Self::Fs => "virtio-fs",
+ 			Self::Vsock => "virtio-vsock",
++			Self::Rng => "virtio-rng",
+ 			_ => return None,
+ 		};
+ 
+diff --git a/src/drivers/virtio/transport/pci.rs b/src/drivers/virtio/transport/pci.rs
+index eb71fb7..b44a467 100644
+--- a/src/drivers/virtio/transport/pci.rs
++++ b/src/drivers/virtio/transport/pci.rs
+@@ -36,6 +36,8 @@ use crate::drivers::pci::error::PciError;
+ use crate::drivers::virtio::error::VirtioError;
+ use crate::drivers::virtio::transport::pci::PciBar as VirtioPciBar;
+ use crate::drivers::virtio::{ControlRegisters, VirtioIdExt};
++#[cfg(feature = "virtio-rng")]
++use crate::drivers::rng::VirtioRngDriver;
+ #[cfg(feature = "virtio-vsock")]
+ use crate::drivers::vsock::VirtioVsockDriver;
+ 
+@@ -720,6 +722,19 @@ pub(crate) fn init_device(
+ 				Err(DriverError::InitVirtioDevFail(virtio_error))
+ 			}
+ 		},
++		#[cfg(feature = "virtio-rng")]
++		virtio::Id::Rng => match VirtioRngDriver::init(device) {
++			Ok(virt_rng_drv) => {
++				info!("Virtio entropy driver initialized.");
++				let irq = device.get_irq().unwrap();
++				crate::arch::interrupts::add_irq_name(irq, "virtio");
++				Ok(VirtioDriver::Rng(alloc::boxed::Box::new(virt_rng_drv)))
++			}
++			Err(virtio_error) => {
++				error!("Virtio entropy driver could not be initialized with device: {device_id:x}");
++				Err(DriverError::InitVirtioDevFail(virtio_error))
++			}
++		},
+ 		#[cfg(feature = "virtio-vsock")]
+ 		virtio::Id::Vsock => match VirtioVsockDriver::init(device) {
+ 			Ok(virt_sock_drv) => {
+@@ -763,6 +778,8 @@ pub(crate) enum VirtioDriver {
+ 		feature = "virtio-net",
+ 	))]
+ 	Net(alloc::boxed::Box<VirtioNetDriver>),
++	#[cfg(feature = "virtio-rng")]
++	Rng(alloc::boxed::Box<VirtioRngDriver>),
+ 	#[cfg(feature = "virtio-vsock")]
+ 	Vsock(alloc::boxed::Box<VirtioVsockDriver>),
+ }
+diff --git a/src/entropy.rs b/src/entropy.rs
+index f286b40..06692ca 100644
+--- a/src/entropy.rs
++++ b/src/entropy.rs
+@@ -1,7 +1,8 @@
+ //! Cryptographically secure random data generation.
+ //!
+ //! This currently uses a ChaCha-based generator (the same one Linux uses!) seeded
+-//! with random data provided by the processor.
++//! with random data provided by the processor or, failing that, by a virtio
++//! entropy device.
+ 
+ use hermit_sync::InterruptTicketMutex;
+ use rand_chacha::ChaCha20Rng;
+@@ -25,6 +26,21 @@ struct Pool {
+ 
+ static POOL: InterruptTicketMutex<Option<Pool>> = InterruptTicketMutex::new(None);
+ 
++/// Returns a seed from the processor or, failing that, the virtio entropy device.
++fn seed() -> Option<[u8; 32]> {
++	seed_entropy().or_else(|| {
++		#[cfg(feature = "virtio-rng")]
++		{
++			let mut seed = [0; 32];
++			if crate::drivers::rng::fill(&mut seed) {
++				return Some(seed);
++			}
++		}
++
++		None
++	})
++}
++
+ /// Fills `buf` with random data, respecting the options in `flags`.
+ ///
+ /// Returns the number of bytes written or `-ENOSYS` if the system does not support
+@@ -35,7 +51,7 @@ pub fn read(buf: &mut [u8], _flags: Flags) -> isize {
+ 	let pool = match pool {
+ 		Some(pool) if now.saturating_sub(pool.last_reseed) <= RESEED_INTERVAL => pool,
+ 		pool => {
+-			let Some(seed) = seed_entropy() else {
++			let Some(seed) = seed() else {
+ 				return -i32::from(Errno::Nosys) as isize;
+ 			};
+ 
+diff --git a/src/executor/device.rs b/src/executor/device.rs
+index 8b8ae5d..a747863 100644
+--- a/src/executor/device.rs
++++ b/src/executor/device.rs
+@@ -65,9 +65,18 @@ impl<'a> NetworkInterface<'a> {
+ 		info!("{:?}", capabilities.checksum);
+ 		info!("MTU: {} bytes", capabilities.max_transmission_unit);
+ 
+-		// use the current time based on the wall-clock time as seed
++		// smoltcp draws TCP initial sequence numbers and ephemeral ports from
++		// this seed, so take it from the entropy pool; the wall clock is a
++		// guessable last resort.
+ 		let mut config = Config::new(hardware_addr);
+-		config.random_seed = (arch::kernel::systemtime::now_micros()) / 1_000_000;
++		let mut seed = [0; 8];
++		config.random_seed = if crate::entropy::read(&mut seed, crate::entropy::Flags::empty()) > 0
++		{
++			u64::from_ne_bytes(seed)
++		} else {
++			warn!("No entropy source: seeding the network stack from the wall clock");
++			(arch::kernel::systemtime::now_micros()) / 1_000_000
++		};
+ 		if capabilities.medium == Medium::Ethernet {
+ 			config.hardware_addr = hardware_addr;
+ 		}
+diff --git a/src/syscalls/entropy.rs b/src/syscalls/entropy.rs
+index cb34d32..b2f7d91 100644
+--- a/src/syscalls/entropy.rs
++++ b/src/syscalls/entropy.rs
+@@ -31,18 +31,13 @@ unsafe fn read_entropy(buf: *mut u8, len: usize, flags: u32) -> isize {
+ 		slice::from_raw_parts_mut(buf, len)
+ 	};
+ 
++	// Fails closed: without a seed there is no cryptographically secure data
++	// to return, and the caller must hear so rather than get guessable bytes.
+ 	let ret = entropy::read(buf, flags);
+ 	if ret < 0 {
+-		warn!("Unable to read entropy! Fallback to a naive implementation!");
+-		for byte in &mut *buf {
+-			*byte = (generate_park_miller_lehmer_random_number() & 0xff)
+-				.try_into()
+-				.unwrap();
+-		}
+-		buf.len().try_into().unwrap()
+-	} else {
+-		ret
++		error!("No entropy source: the processor has none and there is no virtio entropy device");
+ 	}
++	ret
+ }
+ 
+ /// Fill `len` bytes in `buf` with cryptographically secure random data.
+-- 
+2.54.0 (Apple Git-157)
+

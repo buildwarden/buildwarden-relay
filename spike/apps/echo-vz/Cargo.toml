@@ -9,7 +9,7 @@ publish = false
 
 [target.'cfg(target_os = "hermit")'.dependencies]
 hermit = { path = "../../.work/hermit-rs/hermit", default-features = false, features = [
-	"acpi", "pci", "kernel-stack", "virtio-console",
+	"acpi", "pci", "kernel-stack", "virtio-console", "virtio-rng",
 	"virtio-net", "dhcpv4", "tcp", "udp",
 ] }
 

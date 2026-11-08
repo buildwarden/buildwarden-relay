@@ -1,0 +1,15 @@
+[package]
+name = "entropy-vz"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+# Reads the kernel's random number generator, which the virtio entropy device
+# seeds on aarch64, then builds a std HashMap, whose hasher draws its keys from
+# the same source.
+
+[target.'cfg(target_os = "hermit")'.dependencies]
+hermit = { path = "../../.work/hermit-rs/hermit", default-features = false, features = ["acpi", "pci", "virtio-console", "virtio-rng"] }
+hermit-abi = "0.5"
+
+[workspace]

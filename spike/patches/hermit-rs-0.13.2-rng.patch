@@ -1,0 +1,37 @@
+From 4fc41257fee7374dcf454624f7ef5f887691fbf1 Mon Sep 17 00:00:00 2001
+From: Jeff Edwards <jeff@edwardsj.com>
+Date: Sat, 7 Nov 2026 17:05:09 -0800
+Subject: [PATCH] hermit: forward the kernel's virtio-rng feature
+
+---
+ hermit/Cargo.toml | 1 +
+ hermit/build.rs   | 1 +
+ 2 files changed, 2 insertions(+)
+
+diff --git a/hermit/Cargo.toml b/hermit/Cargo.toml
+index 438bdb2..3185702 100644
+--- a/hermit/Cargo.toml
++++ b/hermit/Cargo.toml
+@@ -67,6 +67,7 @@ rtl8139 = []
+ gem-net = []
+ virtio-console = []
+ virtio-fs = []
++virtio-rng = []
+ virtio-vsock = []
+ vga = []
+ idle-poll = []
+diff --git a/hermit/build.rs b/hermit/build.rs
+index cb307e2..c1a1b5b 100644
+--- a/hermit/build.rs
++++ b/hermit/build.rs
+@@ -123,6 +123,7 @@ impl KernelSrc {
+ 				"gem-net",
+ 				"virtio-console",
+ 				"virtio-fs",
++				"virtio-rng",
+ 				"virtio-vsock",
+ 				"vga",
+ 				"idle-poll",
+-- 
+2.54.0 (Apple Git-157)
+
