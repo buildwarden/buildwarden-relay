@@ -1,0 +1,4 @@
+vzpair: echo server on port 47100
+vzpair: relay started
+vzpair: build started
+vzpair: timed out after 30s

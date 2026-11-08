@@ -1,0 +1,71 @@
+From d4c0f8cf574baa0a99b481cc2bf493f5b2b380e5 Mon Sep 17 00:00:00 2001
+From: Jeff Edwards <jeff@edwardsj.com>
+Date: Sun, 8 Nov 2026 10:37:23 -0800
+Subject: [PATCH] virtio-net: survive VZ's file handle attachment
+
+Apple's Virtualization framework file handle attachment (a datagram
+socket carrying raw frames) wants receive buffers four bytes larger than
+the 1526 the specification suggests, room for an 802.1Q tag. Given
+1526-byte buffers it sets DEVICE_NEEDS_RESET on the first frame it
+delivers and the device goes dead in both directions; its log says
+"Guest buffer on the receive queue is smaller than expected". Post
+1530-byte buffers.
+
+The same attachment reports link status changes with a configuration
+interrupt, which hit a todo!() and brought the kernel down. Log the link
+state instead: nothing the driver reads from the configuration changes
+at run time.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ src/drivers/net/virtio/mod.rs | 25 ++++++++++++++++---------
+ 1 file changed, 16 insertions(+), 9 deletions(-)
+
+diff --git a/src/drivers/net/virtio/mod.rs b/src/drivers/net/virtio/mod.rs
+index f33a074..42010a2 100644
+--- a/src/drivers/net/virtio/mod.rs
++++ b/src/drivers/net/virtio/mod.rs
+@@ -91,7 +91,9 @@ fn determine_rx_buf_size(dev_cfg: &NetDevCfg) -> u32 {
+ 			min_buf_size = u32::max(min_buf_size, 65562 - size_of::<Hdr>() as u32);
+ 		} else {
+ 			// Otherwise, the driver SHOULD populate the receive queue(s) with buffers of at least 1526 bytes.
+-			min_buf_size = u32::max(min_buf_size, 1526 - size_of::<Hdr>() as u32);
++			// Apple's Virtualization framework wants 4 more, room for an 802.1Q tag: its file handle
++			// attachment sets DEVICE_NEEDS_RESET on the first frame it finds a 1526-byte buffer for.
++			min_buf_size = u32::max(min_buf_size, 1530 - size_of::<Hdr>() as u32);
+ 		}
+ 	}
+ 
+@@ -407,16 +409,21 @@ impl NetworkDriver for VirtioNetDriver<Init> {
+ 	fn handle_interrupt(&mut self) {
+ 		let status = self.isr_stat.acknowledge();
+ 
++		// A device reports a link status change this way (VZ does when the
++		// peer of a file handle attachment comes and goes). Nothing in the
++		// configuration that the driver relies on changes at run time, so
++		// log the link state rather than bring the kernel down.
+ 		#[cfg(not(feature = "pci"))]
+-		if status.contains(virtio::mmio::InterruptStatus::CONFIGURATION_CHANGE_NOTIFICATION) {
+-			info!("Configuration changes are not possible! Aborting");
+-			todo!("Implement possibility to change config on the fly...")
+-		}
+-
++		let config_changed =
++			status.contains(virtio::mmio::InterruptStatus::CONFIGURATION_CHANGE_NOTIFICATION);
+ 		#[cfg(feature = "pci")]
+-		if status.contains(virtio::pci::IsrStatus::DEVICE_CONFIGURATION_INTERRUPT) {
+-			info!("Configuration changes are not possible! Aborting");
+-			todo!("Implement possibility to change config on the fly...")
++		let config_changed = status.contains(virtio::pci::IsrStatus::DEVICE_CONFIGURATION_INTERRUPT);
++		if config_changed {
++			info!(
++				"Network device {:x?} configuration changed; link up: {}",
++				self.get_mac_address(),
++				self.is_link_up()
++			);
+ 		}
+ 	}
+ }
+-- 
+2.54.0 (Apple Git-157)
+

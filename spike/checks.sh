@@ -11,13 +11,19 @@
 #   vz-rng        entropy-vz on VZ twice, seeded from virtio-rng, values differ
 #   vz-norng      entropy-vz on VZ without an entropy device: fails closed
 #   vz-vsock      vsock-vz on VZ: guest->host and host->guest over virtio-vsock
+#   vz-pair       relay-vz and build-vz on VZ (vzpair): the build's TCP
+#                 connection crosses the build link to the relay's own
+#                 stack and leaves through the relay's NAT NIC
+#   vz-pair-closed  the same, with the relay not reading the build link:
+#                 the build reaches nothing
 #
 # Every Qemu run has a virtio-rng device: the patched kernel fails closed
 # without an entropy source, and std then panics before main.
 #
 # vz-net connects to the guest's NAT address, so run it from a terminal with
-# macOS Local Network permission; vz-vsock needs none. Exit status: the
-# number of failures.
+# macOS Local Network permission; vz-vsock needs none. The vz-pair checks
+# serve the build's destination from the host, on the NAT network. Exit
+# status: the number of failures.
 #
 # usage: checks.sh <out dir>
 set -u
@@ -31,6 +37,8 @@ hellovz=$here/apps/hello-vz/target/aarch64-unknown-hermit/release/hello-vz
 echovz=$here/apps/echo-vz/target/aarch64-unknown-hermit/release/echo-vz
 entropyvz=$here/apps/entropy-vz/target/aarch64-unknown-hermit/release/entropy-vz
 vsockvz=$here/apps/vsock-vz/target/aarch64-unknown-hermit/release/vsock-vz
+relayvz=$here/apps/relay-vz/target/aarch64-unknown-hermit/release/relay-vz
+buildvz=$here/apps/build-vz/target/aarch64-unknown-hermit/release/build-vz
 fails=0
 
 result() { # name ok detail
@@ -144,5 +152,30 @@ grep -q "said: guest says hi" "$out/vz-vsock-vzrun.log" &&
 	grep -q "vsock: echo ok" "$out/vz-vsock-vzrun.log" &&
 	grep -a -q "vsock: echo done" "$out/vz-vsock-console.log"
 result vz-vsock $? "guest->host port 5001 and host->guest port 5000 echo"
+
+# Boots the relay and the build over a build link; $1 names the logs, $2 is
+# the relay app's argument, $3 the seconds to allow. The host's echo server
+# is on an uncommon port, so another experiment's listener does not collide.
+pair() {
+	"$here/out/vzpair" "$img" "$relayvz" "$buildvz" \
+		--relay-cmdline "env=HERMIT_RAW_MAC=02:42:0b:00:00:01 -- $2" \
+		--build-cmdline "-ip 10.0.9.2 -gateway 10.0.9.1 -mask 255.255.255.0 -- 192.168.64.1:47100" \
+		--relay-console "$out/$1-relay.log" --build-console "$out/$1-build.log" --seconds "$3" --port 47100 \
+		> "$out/$1-vzpair.log" 2>&1
+}
+
+pair vz-pair "" 60
+from=$(grep "echo server: connection from" "$out/vz-pair-vzpair.log" | head -1 | sed 's/.*from //')
+grep -a -q "Network device 02-42-0b-00-00-01 serves packet sockets" "$out/vz-pair-relay.log" &&
+	grep -a -q "closed, 14 bytes up, 14 bytes down" "$out/vz-pair-relay.log" &&
+	grep -a -q "build: echo: build says hi" "$out/vz-pair-build.log" &&
+	case $from in 192.168.64.*) true ;; *) false ;; esac
+result vz-pair $? "build 10.0.9.2 -> relay -> host, which saw ${from:-nothing}"
+
+pair vz-pair-closed closed 30
+! grep -q "echo server: connection" "$out/vz-pair-closed-vzpair.log" &&
+	! grep -a -q "build: echo" "$out/vz-pair-closed-build.log" &&
+	grep -a -q "relay: closed" "$out/vz-pair-closed-relay.log"
+result vz-pair-closed $? "relay not reading the link: the build reached nothing"
 
 exit "$fails"

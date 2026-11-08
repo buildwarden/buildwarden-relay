@@ -25,17 +25,20 @@ nine fixes, each found and proven on VZ.
 | Follow-up: entropy from virtio-rng on VZ, two boots differ | PASS |
 | Follow-up: no entropy device on VZ, the kernel fails closed | PASS |
 | Follow-up: vsock on VZ, guest → host and host → guest | PASS, inside this session's sandbox (no Local Network access) |
+| Second NIC: build VM → build link → relay → NAT → host, on VZ | PASS: the host sees the relay's NAT address, never the build's (`evidence/vz-pair-*.log`) |
+| Second NIC: relay not reading the link, the build reaches nothing | PASS (`evidence/vz-pair-closed-*.log`) |
 
-`evidence/checks-summary.txt` holds the full run; all nine checks also pass
+`evidence/checks-summary.txt` holds the full run; all eleven checks also pass
 from fresh clones (the patches apply cleanly to the pinned tags).
 
 **Scope:** the VZ escape hatch (Decision 12) is not triggered. The VZ work is
 a patch set of about 170 lines of kernel changes and one new loader target,
 all upstreamable except the loader's fixed link address. Two findings bind the
 relay on every hypervisor, not just VZ: **Hermit has one network interface**,
-and **aarch64 Hermit had no real entropy**. The follow-up fixed the second (a
-virtio-rng driver, failing closed without one) and made vsock work on VZ; the
-first is open ("The second NIC" below) and sets the size of M3.
+and **aarch64 Hermit had no real entropy**. The follow-ups fixed both: a
+virtio-rng driver that fails closed without one, and a second NIC served to
+the relay app as raw frames ("The second NIC" below, prototyped VM-to-VM on
+VZ). vsock works on VZ too.
 
 ## Answers the kickoff is waiting on
 
@@ -70,21 +73,23 @@ first is open ("The second NIC" below) and sets the size of M3.
    directions verified), so warden needs no Local Network permission.
 3. **Entropy:** a virtio entropy device on every relay VM; the kernel refuses
    to produce random data without one.
-4. **Upstream:** one virtio-net device on `VZNATNetworkDeviceAttachment`
-   (DHCP, egress and host → relay all verified), unless upstream moves to
-   vsock too ("The second NIC" below).
-5. **Build link (sibling build VM ↔ relay):** a file-handle socketpair
-   between the two VMs (`VZFileHandleNetworkDeviceAttachment`), as the main
-   repo's vz driver does today for its host relay. Not tested VM-to-VM here.
-   It needs a **second NIC in the relay**, which stock Hermit cannot drive
-   (finding 1 below), so this item depends on Question 1.
+4. **Upstream:** a virtio-net device on `VZNATNetworkDeviceAttachment`
+   (DHCP, egress and host → relay all verified), served by the kernel's
+   network stack.
+5. **Build link (sibling build VM ↔ relay):** a datagram socketpair that
+   warden creates, one end the build VM's only NIC and the other the relay's
+   second NIC (`VZFileHandleNetworkDeviceAttachment` on both). The relay
+   kernel keeps that NIC from its network stack (`HERMIT_RAW_MAC`) and hands
+   its frames to the relay app through a packet socket. Verified VM-to-VM
+   (`vzpair/`, checks `vz-pair` and `vz-pair-closed`).
 
 ## Patches
 
 All patches are in `patches/`. `make patched` applies the fix patches to
-fresh clones: the loader's, the kernel's three (VZ boot, entropy, vsock, in
-that order) and a one-line hermit-rs patch that forwards the new
-`virtio-rng` feature.
+fresh clones: the loader's, the kernel's five (VZ boot, entropy, vsock, VZ's
+file handle attachment, packet sockets, in that order) and two one-line
+hermit-rs patches that forward the new `virtio-rng` and `net-packet`
+features.
 
 ### Loader: `patches/loader-v0.5.7-vz.patch`, a new `aarch64-vz` target
 
@@ -147,6 +152,37 @@ peer that closes, hung. On VZ, in the order the test hit them:
 
 None is VZ-specific. Throughput was not measured: the test moves a few lines.
 
+### Kernel: `patches/kernel-v0.13.2-filehandle.patch`, the build link's NIC
+
+VZ's file handle attachment (raw frames over a datagram socket) behaves
+differently from its NAT attachment in two ways, both found with the build
+link:
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| The NIC goes dead in both directions after the first frame arrives | It sets `DEVICE_NEEDS_RESET` when a receive buffer is the 1526 bytes the spec suggests; VZ's log says "Guest buffer on the receive queue is smaller than expected". 1530 works: room for an 802.1Q tag | Post 1530-byte receive buffers |
+| Kernel panic when the peer VM comes up | It reports link status changes with a configuration interrupt, which hit a `todo!()` | Log the link state; nothing the driver reads changes at run time |
+
+The first was found by streaming the log of VZ's XPC service
+(`/usr/bin/log stream --predicate 'process BEGINSWITH "com.apple.Virtualization"'`),
+which names the device and the complaint. That log is the first place to look
+for the next VZ device problem.
+
+### Kernel: `patches/kernel-v0.13.2-packet.patch`, packet sockets
+
+Behind a `net-packet` feature (virtio-net over PCI):
+
+| Piece | What |
+|---|---|
+| Device roles at boot (`executor/device.rs`) | The virtio-net device whose MAC is `HERMIT_RAW_MAC` (`env=HERMIT_RAW_MAC=…` on the command line) goes to packet sockets and never to smoltcp. The first other device goes to the stack, as before. Any further device is left unused and logged. An unparsable `HERMIT_RAW_MAC` stops the boot |
+| `socket(AF_PACKET = 5, SOCK_RAW)` (`fd/socket/packet.rs`) | One whole Ethernet frame per `read()` or `write()`, blocking or not, with `poll()`. One socket holds the device at a time (a second gets `EBUSY`) |
+| Interrupts | The device's own handler acknowledges it and wakes the reader |
+
+About 265 lines, in safe Rust apart from two one-line `unsafe` arms in the
+syscall layer's `sockaddr` conversion, written like the existing arms
+beside them. The device driver is the existing virtio-net driver,
+unchanged: the build NIC is a second instance of it, not new driver code.
+
 ### Boot tracing (debugging only)
 
 `patches/loader-vz-checkpoints.patch` and `patches/kernel-vz-tracing-wip.patch`
@@ -183,15 +219,16 @@ dumps, captured with a Linux probe guest (`probe/`):
 | Reset | asynchronous | synchronous |
 | CPU `rng` (FEAT_RNG) | absent | host-dependent |
 | NAT | `192.168.64.0/24` via `bridge100`; `PRIVATE` member ports; DHCP and DNS on `.1` | |
+| File handle NIC | raw frames, no padding, over the datagram socket; offers no `CSUM`; receive buffers of at least 1530 bytes; a configuration interrupt when the link comes up | |
 
 ## Findings for M3 and beyond (not VZ-specific)
 
-1. **One NIC.** Hermit's network stack takes a single global
-   `NETWORK_DEVICE` into one smoltcp `Interface`, and sockets bind to it
-   implicitly. The relay needs two: the build link and upstream (the main
-   repo's `relay-vm/init` uses `eth0` and `eth1`). In host mode the Go relay
-   also reads raw Ethernet frames off the build link. Neither fits stock
-   Hermit on any hypervisor. This is a design decision (Question 1).
+1. **One NIC (prototyped in the follow-up).** Hermit's network stack takes a
+   single global `NETWORK_DEVICE` into one smoltcp `Interface`. The relay
+   needs two: the build link and upstream. Rather than make the stack
+   multi-homed, the packet-socket patch keeps the build NIC out of the
+   kernel's stack altogether and gives its raw frames to the relay app ("The
+   second NIC").
 2. **No real entropy on aarch64 (fixed in the follow-up).** `seed_entropy()`
    is a stub returning `None` there, and the kernel had no virtio-rng driver.
    `sys_read_entropy`, which promises cryptographically secure bytes, then
@@ -208,6 +245,15 @@ dumps, captured with a Linux probe guest (`probe/`):
    the driver busy-polls and moves 8 KiB packets.
 5. Upstream nightly `nightly-2026-11-01` builds a loader that hangs
    mid-print on Qemu; `nightly-2026-08-15` (near the loader release) works.
+6. **Hermit's TCP `shutdown()` is a no-op**, so a socket cannot be
+   half-closed. The relay prototype closes both directions when the build
+   finishes sending. A request/response client is unaffected, but one that
+   half-closes and then waits for the reply loses the reply. This needs a
+   kernel fix before the real relay.
+7. **`connect_timeout` does not time out** while the gateway's ARP goes
+   unanswered (seen in `vz-pair-closed`: the build's 1-second connects never
+   returned). Harmless for the relay, which only dials out over NAT, but an
+   upstream bug.
 
 ## Attempts, in order
 
@@ -221,6 +267,7 @@ dumps, captured with a Linux probe guest (`probe/`):
 | A.5 | Console silent with the kernel booting fully | Probed the device: status `0xF`, features, notify address, command register `0x6`: all correct. VZ never consumed a descriptor. Bisected to the missing reset wait (fix 7) |
 | B | virtio-net on VZ | Fixes 8 and 9, then packed queues dead; on split queues, DHCP lease and host → guest echo |
 | B (Linux) | Linux probe on VZ NAT | DHCP, DNS, ICMP and TCP egress work; sibling VMs isolated at layer 2 |
+| NIC 2 | Relay and build VMs over a socketpair (`vzpair`) | Device roles by MAC worked first time; the relay then panicked on the link-up interrupt, and the link NIC went dead on the first frame. VZ's own log named the receive buffer size; with 1530-byte buffers the round trip passes |
 
 ## Judgement calls made unattended
 
@@ -258,15 +305,30 @@ dumps, captured with a Linux probe guest (`probe/`):
 11. **The rng driver polls** its queue and only acknowledges interrupts, since
     seeding is rare and synchronous. It sits outside `PCI_DRIVERS`, whose
     interrupt dispatch has a `todo!()` for unknown drivers.
+12. **The build NIC is picked by MAC, not by device order.** Warden sets
+    every MAC, so this is deterministic, and the check lists the link NIC
+    first to prove order does not matter. Anything unexpected fails closed:
+    a bad `HERMIT_RAW_MAC` stops the boot, and a third NIC is never used.
+13. **Packet socket ABI:** `AF_PACKET` is 5, Hermit's next free family
+    number (Hermit's are not Linux's: its `AF_INET` is 3). The spike's relay
+    app defines the constants itself rather than patching `hermit-abi`.
+14. **The relay prototype is minimal on purpose:** one thread polling every
+    millisecond, a listener created per port as each SYN arrives, TCP only,
+    and a blocking upstream dial. It proves the path, not the relay's
+    design. The fixes tried while finding the buffer size (header and frame
+    in one descriptor, indirect descriptors, filling RX after `DRIVER_OK`,
+    padding short frames) did not help and are not in the patches.
 
 ## Questions for you
 
-1. **The relay's second NIC on Hermit.** See "The second NIC" for the
-   options, weighed against the rule that the build environment reaches
-   nothing but the relay. This sets M3's scope on every hypervisor.
+1. ~~The relay's second NIC on Hermit.~~ Answered 2026-11-08: a compromised
+   relay reaching the internet is expected; the guarantee is that nothing
+   bypasses the relay. Two NICs, prototyped here ("The second NIC").
 2. ~~Entropy.~~ Answered 2026-11-07: in scope; done here.
 3. **Upstreaming.** May I open issues and PRs on `hermit-os/kernel`
-   (fixes 1–9, the entropy driver, the vsock fixes and the packed-ring issue)
+   (fixes 1–9, the entropy driver, the vsock fixes, the file handle NIC
+   fixes, packet sockets, and issues for the packed rings, `shutdown()` and
+   `connect_timeout`)
    and `hermit-os/loader`
    (`aarch64-vz`, ideally as a PIE loader)? Until they land, the patches stay
    here (see "Carrying the patches").
@@ -275,36 +337,60 @@ dumps, captured with a Linux probe guest (`probe/`):
 
 ## The second NIC
 
-The requirement: the build VM reaches nothing but the relay, and every byte
-it receives passes through the relay. Two facts narrow the options:
+The requirement (Jeff, 2026-11-08): the build environment cannot reach the
+outside at all, and all of its traffic goes through the relay. The relay
+itself reaching the internet is expected; the protection is a small relay
+and a network that cannot route around it. So the relay has two NICs, and
+the prototype is built so that nothing but the relay app can carry a byte
+from one to the other:
 
-- **Hermit's network stack cannot forward.** smoltcp terminates traffic and
-  never routes between interfaces, so a two-NIC relay cannot leak build
-  traffic onto the upstream path by misconfiguration. Only the relay app can
-  carry bytes across.
-- **The build side may need raw frames, not sockets.** The Go relay reads raw
-  Ethernet frames off the build link, so it can answer for any destination
-  address. Hermit's in-kernel sockets only accept connections to the relay's
-  own address. Unless the build VM is pointed at the relay explicitly (proxy
-  settings, DNS), the relay needs raw frames on the build NIC whatever it
-  does upstream.
+```
+build VM                      relay VM                                host
+ eth0 ──── socketpair ──── NIC 1 (HERMIT_RAW_MAC) ── packet socket ─┐
+ (only NIC,                     kernel stack never sees it          │
+  no NAT,                                                       relay app:
+  no vsock)                                                     own smoltcp,
+                                                                any address
+                               NIC 2 ── kernel smoltcp ── TCP ──────┘
+                               (VZ NAT, DHCP) ─────────────────────────► internet
+```
 
-| Option | Build VM's reach | Relay's reach | Hermit work | Main cost |
-|---|---|---|---|---|
-| **A. Two NICs:** build socketpair + VZ NAT | relay only | the whole internet via NAT | Several devices, and raw frames on one (moderate–large: `NETWORK_DEVICE` and the socket layer assume one) | A compromised relay, which parses untrusted build traffic, has unrestricted egress |
-| **B. One NIC + vsock upstream:** build socketpair; the relay asks a host dialer in warden to open each upstream connection | relay only | the build VM and warden's dialer, nothing else | Raw frames on the one NIC; vsock is done | A new host-side dialer; vsock throughput unproven; upstream connections come from the host, not the VM |
-| C. Host-side switch: one NIC to warden, which also plays gateway | relay, enforced by warden's frame filter | via warden's gateway | none | The build VM shares an L2 segment with an internet gateway: one filter bug is a leak. Rejected |
-| D. Build traffic over vsock | — | — | — | VZ has no guest-to-guest vsock, so the host would carry build frames. Rejected |
+- **Outside the relay**, warden creates the socketpair and gives the build VM
+  that one NIC: no NAT device, no socket device. Its only peer is the relay's
+  NIC 1, so a misconfigured build VM has nowhere else to send a frame.
+- **Inside the relay**, build frames never reach the kernel's network stack.
+  The packet socket hands them to the relay app, whose own smoltcp
+  instance answers for every destination address (`any_ip`), terminates
+  each TCP connection and dials the same destination through the kernel's
+  stack on NIC 2. The kernel has no path between the devices: smoltcp does
+  not forward, and the build device is never registered with it. With the
+  relay app not reading the link, the build reaches nothing
+  (`vz-pair-closed`), so the kernel itself answers nothing, not even ARP.
+- **Memory safety** is the same as Hermit's existing networking: both NICs
+  run the same virtio-net driver, and the new kernel code is safe Rust apart
+  from two `sockaddr` conversion arms. On Hermit's single address space that
+  is the whole boundary, so the relay's own code should stay free of
+  `unsafe` too. The prototype's four `unsafe` calls are raw `hermit-abi`
+  syscalls, for a safe wrapper type to hold.
 
-**Recommendation: B.** It is the only option where a compromised relay still
-cannot reach the internet freely. The dialer enforces the egress policy a
-second time, outside the guest. It also drops the NAT device and its DHCP,
-and needs the least kernel work, since vsock now works. The ledger is
-unchanged: the relay still sees and records every byte before it goes
-upstream. What to prove next: vsock throughput on VZ under a realistic
-download, and whether the build NIC needs raw frames (the relay design's
-call). vsock also differs by hypervisor: Qemu uses vhost-vsock (Linux hosts),
-and Firecracker maps it to a Unix socket.
+What `vz-pair` shows: the build (`10.0.9.2`, gateway `10.0.9.1`) connects to
+`192.168.64.1:47100`, the host's NAT address. The relay accepts the
+connection for that foreign address, dials it from its own lease, and the
+host's echo server logs the relay's NAT address as the peer. 14 bytes go
+each way, and both sides close.
+
+The size came in under the estimate: about 265 kernel lines (packet sockets)
+plus 16 (the file-handle fixes), against 500–800 estimated. The relay app is
+about 300 lines.
+
+Open before the real relay:
+- **Half-close** (finding 6) and **UDP/DNS**: the prototype relays TCP only.
+  DNS from the build would need the relay to answer it.
+- **Throughput:** the relay app polls every millisecond and copies each frame
+  twice. Not measured.
+- **Other hypervisors:** the packet socket is generic virtio-net. The 1530-byte
+  buffer is harmless elsewhere, but the build link's form (a socketpair on
+  VZ, a tap or socket netdev on Qemu) is per driver.
 
 ## Carrying the patches
 
@@ -320,9 +406,10 @@ consumed through Cargo's `[patch]`. Still no long-lived fork.
 | Path | What |
 |---|---|
 | `Makefile` | `make checks` builds everything from the pinned tags plus patches and runs the checks; `stock`, `vz-stock`, `stubs`, `probe`, `probe-sibling` rerun the earlier experiments |
-| `checks.sh` | The nine checks |
-| `patches/` | Loader, kernel (VZ, entropy, vsock) and hermit-rs fixes; boot-tracing patches |
-| `apps/` | `hello-vz` (Stage A), `echo-vz` (Stage B), `entropy-vz`, `vsock-vz` |
+| `checks.sh` | The eleven checks |
+| `patches/` | Loader, kernel (VZ, entropy, vsock, file handle NIC, packet sockets) and hermit-rs fixes; boot-tracing patches |
+| `apps/` | `hello-vz` (Stage A), `echo-vz` (Stage B), `entropy-vz`, `vsock-vz`, `relay-vz` and `build-vz` (the second NIC) |
+| `vzpair/` | Swift runner for the relay and build VMs joined by a socketpair, with a host echo server as the destination |
 | `vzrun/` | Swift VZ runner (Linux boot loader, virtio console to a file, NAT, optional fixed MAC, entropy device unless `--no-rng`, vsock test with `--vsock`) |
 | `vz-trace.sh` | Boot tracing driver |
 | `stub/mkstub.py` | Boot-protocol stub images |

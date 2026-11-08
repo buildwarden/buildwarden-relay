@@ -1,0 +1,38 @@
+From e4175459a9463a2f86a775c960d3483aa0a455ff Mon Sep 17 00:00:00 2001
+From: Jeff Edwards <jeff@edwardsj.com>
+Date: Sun, 8 Nov 2026 10:37:29 -0800
+Subject: [PATCH] hermit: forward the net-packet feature to the kernel
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ hermit/Cargo.toml | 1 +
+ hermit/build.rs   | 1 +
+ 2 files changed, 2 insertions(+)
+
+diff --git a/hermit/Cargo.toml b/hermit/Cargo.toml
+index 3185702..d09864e 100644
+--- a/hermit/Cargo.toml
++++ b/hermit/Cargo.toml
+@@ -68,6 +68,7 @@ gem-net = []
+ virtio-console = []
+ virtio-fs = []
+ virtio-rng = []
++net-packet = ["virtio-net"]
+ virtio-vsock = []
+ vga = []
+ idle-poll = []
+diff --git a/hermit/build.rs b/hermit/build.rs
+index c1a1b5b..d6280b3 100644
+--- a/hermit/build.rs
++++ b/hermit/build.rs
+@@ -124,6 +124,7 @@ impl KernelSrc {
+ 				"virtio-console",
+ 				"virtio-fs",
+ 				"virtio-rng",
++				"net-packet",
+ 				"virtio-vsock",
+ 				"vga",
+ 				"idle-poll",
+-- 
+2.54.0 (Apple Git-157)
+
