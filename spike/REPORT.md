@@ -345,13 +345,12 @@ dumps, captured with a Linux probe guest (`probe/`):
    relay reaching the internet is expected; the guarantee is that nothing
    bypasses the relay. Two NICs, prototyped here ("The second NIC").
 2. ~~Entropy.~~ Answered 2026-11-07: in scope; done here.
-3. **Upstreaming.** May I open issues and PRs on `hermit-os/kernel`
-   (fixes 1–9, the entropy driver, the vsock fixes, the file handle NIC
-   fixes, packet sockets, TCP half-close, and issues for the packed rings
-   and `connect_timeout`)
-   and `hermit-os/loader`
-   (`aarch64-vz`, ideally as a PIE loader)? Until they land, the patches stay
-   here (see "Carrying the patches").
+3. **Upstreaming.** With the fork (Decision 18), the relay no longer waits
+   on upstream, but each submission still needs your approval. May I open
+   issues and PRs on `hermit-os/kernel` (the upstream-bound patches in
+   "Carrying the patches", and issues for the packed rings and
+   `connect_timeout`) and `hermit-os/loader` (`aarch64-vz`, ideally as a
+   PIE loader)? Deviations are offered only if you want them to be.
 4. ~~Warden's Local Network permission versus vsock.~~ Answered 2026-11-07:
    vsock for the host ↔ relay interface, now working.
 
@@ -417,12 +416,26 @@ Open before the real relay:
 
 ## Carrying the patches
 
-No GitHub fork of Hermit is needed to use them. The kernel is built by the
-`hermit` crate from any checkout named by `HERMIT_MANIFEST_DIR`. The loader
-is a separate binary the relay image ships anyway. A pinned tag plus a patch
-file per component (as here) keeps Decision 17's one-place version bump. If
-upstream is slow, the next step up is a `buildwarden/hermit-kernel` branch
-consumed through Cargo's `[patch]`. Still no long-lived fork.
+Decided 2026-11-08 (kickoff "Hermit fork", Decision 18): BuildWarden forks
+Hermit's kernel, loader and hermit-rs into the `buildwarden` GitHub org. The
+fork is both the base for upstream PRs and the home of deliberate
+deviations. In M1 the patches here become commits on the forks'
+`bw/v0.13.2` branches, each classed in `CARRIED.md`:
+
+| Patch | Class |
+|---|---|
+| `loader-v0.5.7-vz.patch` | Upstream-bound, except the fixed VZ link address (a deviation until a position-independent loader replaces it) |
+| `kernel-v0.13.2-vz.patch` | Upstream-bound |
+| `kernel-v0.13.2-rng.patch` | Deviation (fail-closed entropy). The driver itself may still be offered upstream |
+| `kernel-v0.13.2-vsock.patch` | Upstream-bound |
+| `kernel-v0.13.2-filehandle.patch` | Upstream-bound |
+| `kernel-v0.13.2-packet.patch` | Deviation (the relay's build link) |
+| `kernel-v0.13.2-shutdown.patch` | Upstream-bound |
+| `hermit-rs-0.13.2-rng.patch`, `-packet.patch` | Follow their kernel patches |
+
+Until then the spike keeps its pinned tags plus patch files. The kernel is
+built from any checkout named by `HERMIT_MANIFEST_DIR`, so moving to the
+fork changes only where the Makefile clones from and which tag it pins.
 
 ## Files
 
