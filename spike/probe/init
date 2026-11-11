@@ -1,0 +1,102 @@
+#!/bin/busybox sh
+# VZ probe init. Boots under VZ's Linux boot loader with a stock arm64 Linux
+# kernel and reports what the VZ machine looks like to a guest: the device
+# tree, the physical memory map, where VZ loaded the kernel, which virtio
+# transport the devices sit on, the CPU features Hermit's entropy seeding
+# needs, and whether DHCP on the NAT attachment answers. Everything goes to
+# the virtio console between PROBE markers, then the VM powers off.
+#
+# This answers the VZ-side unknowns of the Hermit spike without running any
+# Hermit code; see spike/REPORT.md.
+
+/bin/busybox mkdir -p /proc /sys /dev /tmp /etc
+/bin/busybox --install -s /bin
+mount -t devtmpfs devtmpfs /dev
+# The cpio carries no /dev/console node (making one needs root on macOS), so
+# init starts without stdio; take the console from devtmpfs instead.
+exec </dev/console >/dev/console 2>&1
+mount -t proc proc /proc
+mount -t sysfs sysfs /sys
+
+section() { echo "=== PROBE $1"; }
+
+section begin
+section uname;    uname -a
+section cmdline;  cat /proc/cmdline
+section model;    cat /proc/device-tree/model 2>/dev/null; echo
+section compatible; tr '\0' '\n' < /proc/device-tree/compatible 2>/dev/null
+section iomem;    cat /proc/iomem
+section cpuinfo;  head -12 /proc/cpuinfo
+section virtio
+for d in /sys/bus/virtio/devices/*; do
+	echo "$d id=$(cat "$d/device") parent=$(readlink -f "$d/..")"
+	echo "  negotiated features (bit 0 first): $(cat "$d/features")"
+done
+section pci;      ls /sys/bus/pci/devices 2>/dev/null
+section platform; ls /sys/bus/platform/devices 2>/dev/null
+section ttys;     ls /sys/class/tty | grep -v -E '^tty[0-9]+$'
+section pci-config
+for d in /sys/bus/pci/devices/*; do
+	echo "device $(basename "$d") $(cat "$d/vendor") $(cat "$d/device")"
+	od -A x -t x1 -v "$d/config" | head -16
+done
+section dmesg;    dmesg
+section fdt-base64; base64 /sys/firmware/fdt
+section fdt-end
+
+section net
+# Alpine's virt kernel builds virtio_net as a module; the Makefile copies it
+# and its two dependencies, plus af_packet for udhcpc, from the same kernel
+# package.
+for m in failover net_failover virtio_net af_packet; do insmod "/lib/modules/$m.ko"; done
+ip link
+printf '#!/bin/sh\n[ "$1" = bound ] || exit 0\nenv | grep -E "^(interface|ip|subnet|router|dns|serverid|lease)="\nifconfig "$interface" "$ip" netmask "$subnet"\nroute add default gw "$router" "$interface"\necho "nameserver $dns" > /etc/resolv.conf\n' \
+	> /tmp/lease.sh
+chmod +x /tmp/lease.sh
+for i in /sys/class/net/eth*; do
+	n=$(basename "$i")
+	ip link set "$n" up
+	section "dhcp-$n"
+	udhcpc -i "$n" -n -q -t 5 -s /tmp/lease.sh
+done
+section addr; ip addr
+
+# Host-to-guest reachability: an echo server on :7000. The host connects to
+# the leased address (see the Makefile's probe-echo target); the guest gives
+# it PROBE_WAIT seconds, then powers off.
+section applets; busybox --list | grep -E '^(nc|tcpsvd|httpd|netstat)$'
+
+# Sibling mode: with probe.peer=<ip> on the command line this VM is the
+# client, connecting to another probe VM's echo server over the shared NAT
+# network, the path a sibling build VM would take to a relay VM.
+peer=$(sed -n 's/.*probe\.peer=\([^ ]*\).*/\1/p' /proc/cmdline)
+if [ -n "$peer" ]; then
+	section "sibling-$peer"
+	want="sibling $(cat /proc/sys/kernel/random/uuid)"
+	got=$(echo "$want" | nc -w 3 "$peer" 7000)
+	echo "sent '$want' got '$got'"
+	[ "$got" = "$want" ] && echo "SIBLING OK" || echo "SIBLING FAIL"
+	section ping-peer;    ping -c 2 -W 2 "$peer"
+	section ping-gateway; ping -c 2 -W 2 192.168.64.1
+	section arp;          ip neigh
+	# Upstream egress through the NAT, the relay's own path out.
+	section egress
+	ping -c 2 -W 2 1.1.1.1
+	nslookup example.com 192.168.64.1
+	status=$(printf 'HEAD / HTTP/1.0\r\n\r\n' | nc -w 5 1.1.1.1 80 | head -1)
+	echo "tcp 1.1.1.1:80 -> $status"
+	wget -T 5 -O /dev/null http://example.com/ && status="HTTP/wget"
+	case $status in HTTP/*) echo "EGRESS OK" ;; *) echo "EGRESS FAIL" ;; esac
+	section end
+	poweroff -f
+fi
+
+nc -lk -p 7000 -e /bin/cat &
+sleep 1
+section listening; netstat -ltn
+section listen
+sleep "${PROBE_WAIT:-45}"
+section conns; netstat -tn
+
+section end
+poweroff -f

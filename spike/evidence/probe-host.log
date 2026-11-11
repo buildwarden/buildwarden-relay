@@ -1,0 +1,133 @@
+[    0.101614] hv_vmbus: registering driver hyperv_keyboard
+[    0.101827] rtc-pl031 20050000.pl031: registered as rtc0
+[    0.101876] rtc-pl031 20050000.pl031: setting system clock to 2026-11-07T18:52:05 UTC (1794077525)
+[    0.102053] NET: Registered PF_INET6 protocol family
+[    0.102307] Segment Routing with IPv6
+[    0.102339] In-situ OAM (IOAM) with IPv6
+[    0.104567] registered taskstats version 1
+[    0.104642] Loading compiled-in X.509 certificates
+[    0.104959] Loaded X.509 cert 'alpinelinux.org: Alpine Linux kernel key: 87fa969a47f3e2a6aa35859eb932a17c95abcd82'
+[    0.105760] Demotion targets for Node 0: null
+[    0.105840] Key type .fscrypt registered
+[    0.105868] Key type fscrypt-provisioning registered
+[    0.108230] clk: Disabling unused clocks
+[    0.108262] PM: genpd: Disabling unused power domains
+[    0.108379] Freeing unused kernel memory: 1920K
+[    0.108505] Run /init as init process
+=== PROBE begin
+=== PROBE uname
+Linux (none) 6.12.114-0-virt #1-Alpine SMP PREEMPT_DYNAMIC 2026-10-21 12:19:03 aarch64 Linux
+=== PROBE cmdline
+console=hvc0
+=== PROBE model
+
+=== PROBE compatible
+/init: line 27: can't open /proc/device-tree/compatible: no such file
+=== PROBE iomem
+10000000-1000ffff : GICD
+10010000-1002ffff : GICR
+20050000-20050fff : pl031
+  20050000-20050fff : rtc-pl031
+20060000-20060fff : pl061
+40000000-4fffffff : PCI ECAM
+50000000-6ffdffff : pci
+  50000000-5000007f : 0000:00:05.0
+  50000080-500000bf : 0000:00:01.0
+  500000c0-500000ff : 0000:00:06.0
+70000000-8fffffff : System RAM
+  70000000-7142ffff : Kernel code
+  71430000-7160ffff : reserved
+  71610000-7211ffff : Kernel data
+  72120000-721dbfff : reserved
+  72200000-72200fff : reserved
+  8f337000-8fbfffff : reserved
+  8fc0a000-8fccafff : reserved
+  8fccb000-8fceffff : reserved
+  8fcf0000-8fcf0fff : reserved
+  8fcf1000-8fd03fff : reserved
+  8fd04000-8fd06fff : reserved
+  8fd07000-8fffffff : reserved
+100000000-4ffffffff : pci
+  100000000-10000ffff : 0000:00:01.0
+    100000000-10000ffff : virtio-pci-modern
+  100010000-10001ffff : 0000:00:05.0
+    100010000-10001ffff : virtio-pci-modern
+  100020000-100027fff : 0000:00:06.0
+    100020000-100027fff : virtio-pci-modern
+=== PROBE cpuinfo
+processor	: 0
+BogoMIPS	: 48.00
+Features	: fp asimd evtstrm aes pmull sha1 sha2 crc32 atomics fphp asimdhp cpuid asimdrdm jscvt fcma lrcpc dcpop sha3 asimddp sha512 asimdfhm dit uscat ilrcpc flagm sb paca pacg dcpodp flagm2 frint i8mm bf16 bti afp rpres ebf16
+CPU implementer	: 0x61
+CPU architecture: 8
+CPU variant	: 0x0
+CPU part	: 0x000
+CPU revision	: 0
+
+=== PROBE virtio
+/sys/bus/virtio/devices/virtio0 id=0x0001 parent=/sys/devices/platform/40000000.pci/pci0000:00/0000:00:01.0
+/sys/bus/virtio/devices/virtio1 id=0x0003 parent=/sys/devices/platform/40000000.pci/pci0000:00/0000:00:05.0
+/sys/bus/virtio/devices/virtio2 id=0x0004 parent=/sys/devices/platform/40000000.pci/pci0000:00/0000:00:06.0
+=== PROBE pci
+[1;36m0000:00:00.0[m  [1;36m0000:00:01.0[m  [1;36m0000:00:05.0[m  [1;36m0000:00:06.0[m
+=== PROBE platform
+[1;36m40000000.pci[m       [1;36mgpio-keys[m          [1;36mpsci[m               [1;36mtimer[m
+[1;36malarmtimer.0.auto[m  [1;36mhypervisor[m         [1;36mserial8250[m
+=== PROBE ttys
+console
+hvc0
+hvc1
+hvc2
+hvc3
+hvc4
+hvc5
+hvc6
+hvc7
+ptmx
+tty
+ttyS0
+ttyS1
+ttyS2
+ttyS3
+=== PROBE dmesg
+=== PROBE fdt-base64
+=== PROBE fdt-end
+=== PROBE net
+[    0.121186] NET: Registered PF_PACKET protocol family
+1: lo: <LOOPBACK> mtu 65536 qdisc noop state DOWN qlen 1000
+    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+2: eth0: <BROADCAST,MULTICAST> mtu 1500 qdisc noop state DOWN qlen 1000
+    link/ether 42:53:09:64:82:57 brd ff:ff:ff:ff:ff:ff
+=== PROBE dhcp-eth0
+udhcpc: started, v1.37.0
+udhcpc: broadcasting discover
+udhcpc: broadcasting select for 192.168.64.6, server 192.168.64.1
+udhcpc: lease of 192.168.64.6 obtained from 192.168.64.1, lease time 3600
+subnet=255.255.255.0
+router=192.168.64.1
+interface=eth0
+dns=192.168.64.1
+serverid=192.168.64.1
+ip=192.168.64.6
+lease=3600
+=== PROBE addr
+1: lo: <LOOPBACK> mtu 65536 qdisc noop state DOWN qlen 1000
+    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+2: eth0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc pfifo_fast state UP qlen 1000
+    link/ether 42:53:09:64:82:57 brd ff:ff:ff:ff:ff:ff
+    inet 192.168.64.6/24 brd 192.168.64.255 scope global eth0
+       valid_lft forever preferred_lft forever
+    inet6 fe80::4053:9ff:fe64:8257/64 scope link tentative 
+       valid_lft forever preferred_lft forever
+=== PROBE applets
+nc
+netstat
+=== PROBE listening
+Active Internet connections (only servers)
+Proto Recv-Q Send-Q Local Address           Foreign Address         State       
+tcp        0      0 :::7000                 :::*                    LISTEN      
+=== PROBE listen
+=== PROBE conns
+Active Internet connections (w/o servers)
+Proto Recv-Q Send-Q Local Address           Foreign Address         State       
+=== PROBE end

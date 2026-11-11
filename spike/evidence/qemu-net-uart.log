@@ -1,0 +1,518 @@
+[LOADER][INFO] Hermit Loader version 0.5.7
+[LOADER][INFO] Git version: v0.5.7-2-g30464d4
+[LOADER][INFO] Architecture: aarch64
+[LOADER][INFO] Operating system: none
+[LOADER][INFO] Enabled features: default, elf
+[LOADER][INFO] Built with rustc 1.99.0-nightly (d453bdd8f 2026-08-14)
+[LOADER][INFO] Built on Sat, 7 Nov 2026 20:45:21 +0000
+[LOADER][INFO] Enter startup code
+[LOADER][INFO] Loader: [0x40400000 - 0x4044f010]
+[LOADER][INFO] Parsing kernel from ELF at 0x48000000..0x4817da88 (len = 0x17da88 B / 1563272 B)
+[LOADER][INFO] Found Hermit version 0.13.2
+[LOADER][INFO] Found Uhyve interface version 1
+[LOADER][INFO] Device tree copied to 0x40450000 (0x100000 B)
+[LOADER][INFO] Loading kernel to 0x40600000..0x40736650 (len = 0x136650 B / 1271376 B)
+[LOADER][INFO] TLS is at 0x40711ff8..0x40712068 (len =  0x70 B / 112 B)
+[LOADER][INFO] Detect 1 CPU(s)
+[LOADER][INFO] Detect UART at 0x9000000
+[LOADER][INFO] Successfully set up paging.
+[LOADER][INFO] Memory found!
+[LOADER][INFO] ram_start: 0x40000000, ram_size: 0x20000000. Trying to jump into kernel soon.
+[LOADER][INFO] boot_info = BootInfo {
+    hardware_info: HardwareInfo {
+        phys_addr_range: 0x40000000..0x60000000,
+        serial_port_base: Some(
+            0x1000,
+        ),
+        device_tree: Some(
+            0x40450000,
+        ),
+    },
+    load_info: LoadInfo {
+        kernel_image_addr_range: 0x40600000..0x40736650,
+        tls_info: Some(
+            TlsInfo {
+                start: 0x40711ff8,
+                filesz: 0x20,
+                memsz: 0x70,
+                align: 0x8,
+            },
+        ),
+    },
+    platform_info: LinuxBoot,
+}
+[LOADER][INFO] Entering kernel at 0x4066a86c, stack at 0x4044e000, raw_boot_info at 0x40445028
+[            ][0][INFO  hermit    ] Welcome to Hermit 0.13.2
+[            ][0][INFO  hermit    ] Git version: v0.13.2-1-g58eaa91
+[            ][0][INFO  hermit    ] Architecture: aarch64
+[            ][0][INFO  hermit    ] Enabled features: acpi, dhcpv4, kernel_stack, net, pci, smoltcp, tcp, udp, virtio, virtio_console, virtio_net
+[            ][0][INFO  hermit    ] Built on Sat, 7 Nov 2026 20:51:13 +0000
+[            ][0][INFO  hermit    ] Kernel starts at 0x40600000
+[            ][0][INFO  hermit    ] FDT:
+ / {
+    interrupt-parent = <0x8002>
+    dma-coherent = []
+    model = "linux,dummy-virt"
+    #size-cells = <0x2>
+    #address-cells = <0x2>
+    compatible = "linux,dummy-virt"
+
+    psci {
+        migrate = <0xc4000005>
+        cpu_on = <0xc4000003>
+        cpu_off = <0x84000002>
+        cpu_suspend = <0xc4000001>
+        method = "hvc"
+        compatible = "arm,psci-1.0\0arm,psci-0.2\0arm,psci"
+    };
+
+    memory@40000000 {
+        reg = <0x40000000 0x20000000>
+        device_type = "memory"
+    };
+
+    platform-bus@c000000 {
+        interrupt-parent = <0x8002>
+        ranges = [0, 0, 0, 0, 0, 0, 0, 0, 12, 0, 0, 0, 2, 0, 0, 0]
+        #address-cells = <0x1>
+        #size-cells = <0x1>
+        compatible = "qemu,platform\0simple-bus"
+    };
+
+    fw-cfg@9020000 {
+        dma-coherent = []
+        reg = <0x9020000 0x18>
+        compatible = "qemu,fw-cfg-mmio"
+    };
+
+    virtio_mmio@a000000 {
+        dma-coherent = []
+        interrupts = [0, 0, 0, 0, 0, 0, 0, 16, 0, 0, 0, 1]
+        reg = <0xa000000 0x200>
+        compatible = "virtio,mmio"
+    };
+
+    virtio_mmio@a000200 {
+        dma-coherent = []
+        interrupts = [0, 0, 0, 0, 0, 0, 0, 17, 0, 0, 0, 1]
+        reg = <0xa000200 0x200>
+        compatible = "virtio,mmio"
+    };
+
+    virtio_mmio@a000400 {
+        dma-coherent = []
+        interrupts = [0, 0, 0, 0, 0, 0, 0, 18, 0, 0, 0, 1]
+        reg = <0xa000400 0x200>
+        compatible = "virtio,mmio"
+    };
+
+    virtio_mmio@a000600 {
+        dma-coherent = []
+        interrupts = [0, 0, 0, 0, 0, 0, 0, 19, 0, 0, 0, 1]
+        reg = <0xa000600 0x200>
+        compatible = "virtio,mmio"
+    };
+
+    virtio_mmio@a000800 {
+        dma-coherent = []
+        interrupts = [0, 0, 0, 0, 0, 0, 0, 20, 0, 0, 0, 1]
+        reg = <0xa000800 0x200>
+        compatible = "virtio,mmio"
+    };
+
+    virtio_mmio@a000a00 {
+        dma-coherent = []
+        interrupts = [0, 0, 0, 0, 0, 0, 0, 21, 0, 0, 0, 1]
+        reg = <0xa000a00 0x200>
+        compatible = "virtio,mmio"
+    };
+
+    virtio_mmio@a000c00 {
+        dma-coherent = []
+        interrupts = [0, 0, 0, 0, 0, 0, 0, 22, 0, 0, 0, 1]
+        reg = <0xa000c00 0x200>
+        compatible = "virtio,mmio"
+    };
+
+    virtio_mmio@a000e00 {
+        dma-coherent = []
+        interrupts = [0, 0, 0, 0, 0, 0, 0, 23, 0, 0, 0, 1]
+        reg = <0xa000e00 0x200>
+        compatible = "virtio,mmio"
+    };
+
+    virtio_mmio@a001000 {
+        dma-coherent = []
+        interrupts = [0, 0, 0, 0, 0, 0, 0, 24, 0, 0, 0, 1]
+        reg = <0xa001000 0x200>
+        compatible = "virtio,mmio"
+    };
+
+    virtio_mmio@a001200 {
+        dma-coherent = []
+        interrupts = [0, 0, 0, 0, 0, 0, 0, 25, 0, 0, 0, 1]
+        reg = <0xa001200 0x200>
+        compatible = "virtio,mmio"
+    };
+
+    virtio_mmio@a001400 {
+        dma-coherent = []
+        interrupts = [0, 0, 0, 0, 0, 0, 0, 26, 0, 0, 0, 1]
+        reg = <0xa001400 0x200>
+        compatible = "virtio,mmio"
+    };
+
+    virtio_mmio@a001600 {
+        dma-coherent = []
+        interrupts = [0, 0, 0, 0, 0, 0, 0, 27, 0, 0, 0, 1]
+        reg = <0xa001600 0x200>
+        compatible = "virtio,mmio"
+    };
+
+    virtio_mmio@a001800 {
+        dma-coherent = []
+        interrupts = [0, 0, 0, 0, 0, 0, 0, 28, 0, 0, 0, 1]
+        reg = <0xa001800 0x200>
+        compatible = "virtio,mmio"
+    };
+
+    virtio_mmio@a001a00 {
+        dma-coherent = []
+        interrupts = [0, 0, 0, 0, 0, 0, 0, 29, 0, 0, 0, 1]
+        reg = <0xa001a00 0x200>
+        compatible = "virtio,mmio"
+    };
+
+    virtio_mmio@a001c00 {
+        dma-coherent = []
+        interrupts = [0, 0, 0, 0, 0, 0, 0, 30, 0, 0, 0, 1]
+        reg = <0xa001c00 0x200>
+        compatible = "virtio,mmio"
+    };
+
+    virtio_mmio@a001e00 {
+        dma-coherent = []
+        interrupts = [0, 0, 0, 0, 0, 0, 0, 31, 0, 0, 0, 1]
+        reg = <0xa001e00 0x200>
+        compatible = "virtio,mmio"
+    };
+
+    virtio_mmio@a002000 {
+        dma-coherent = []
+        interrupts = [0, 0, 0, 0, 0, 0, 0, 32, 0, 0, 0, 1]
+        reg = <0xa002000 0x200>
+        compatible = "virtio,mmio"
+    };
+
+    virtio_mmio@a002200 {
+        dma-coherent = []
+        interrupts = [0, 0, 0, 0, 0, 0, 0, 33, 0, 0, 0, 1]
+        reg = <0xa002200 0x200>
+        compatible = "virtio,mmio"
+    };
+
+    virtio_mmio@a002400 {
+        dma-coherent = []
+        interrupts = [0, 0, 0, 0, 0, 0, 0, 34, 0, 0, 0, 1]
+        reg = <0xa002400 0x200>
+        compatible = "virtio,mmio"
+    };
+
+    virtio_mmio@a002600 {
+        dma-coherent = []
+        interrupts = [0, 0, 0, 0, 0, 0, 0, 35, 0, 0, 0, 1]
+        reg = <0xa002600 0x200>
+        compatible = "virtio,mmio"
+    };
+
+    virtio_mmio@a002800 {
+        dma-coherent = []
+        interrupts = [0, 0, 0, 0, 0, 0, 0, 36, 0, 0, 0, 1]
+        reg = <0xa002800 0x200>
+        compatible = "virtio,mmio"
+    };
+
+    virtio_mmio@a002a00 {
+        dma-coherent = []
+        interrupts = [0, 0, 0, 0, 0, 0, 0, 37, 0, 0, 0, 1]
+        reg = <0xa002a00 0x200>
+        compatible = "virtio,mmio"
+    };
+
+    virtio_mmio@a002c00 {
+        dma-coherent = []
+        interrupts = [0, 0, 0, 0, 0, 0, 0, 38, 0, 0, 0, 1]
+        reg = <0xa002c00 0x200>
+        compatible = "virtio,mmio"
+    };
+
+    virtio_mmio@a002e00 {
+        dma-coherent = []
+        interrupts = [0, 0, 0, 0, 0, 0, 0, 39, 0, 0, 0, 1]
+        reg = <0xa002e00 0x200>
+        compatible = "virtio,mmio"
+    };
+
+    virtio_mmio@a003000 {
+        dma-coherent = []
+        interrupts = [0, 0, 0, 0, 0, 0, 0, 40, 0, 0, 0, 1]
+        reg = <0xa003000 0x200>
+        compatible = "virtio,mmio"
+    };
+
+    virtio_mmio@a003200 {
+        dma-coherent = []
+        interrupts = [0, 0, 0, 0, 0, 0, 0, 41, 0, 0, 0, 1]
+        reg = <0xa003200 0x200>
+        compatible = "virtio,mmio"
+    };
+
+    virtio_mmio@a003400 {
+        dma-coherent = []
+        interrupts = [0, 0, 0, 0, 0, 0, 0, 42, 0, 0, 0, 1]
+        reg = <0xa003400 0x200>
+        compatible = "virtio,mmio"
+    };
+
+    virtio_mmio@a003600 {
+        dma-coherent = []
+        interrupts = [0, 0, 0, 0, 0, 0, 0, 43, 0, 0, 0, 1]
+        reg = <0xa003600 0x200>
+        compatible = "virtio,mmio"
+    };
+
+    virtio_mmio@a003800 {
+        dma-coherent = []
+        interrupts = [0, 0, 0, 0, 0, 0, 0, 44, 0, 0, 0, 1]
+        reg = <0xa003800 0x200>
+        compatible = "virtio,mmio"
+    };
+
+    virtio_mmio@a003a00 {
+        dma-coherent = []
+        interrupts = [0, 0, 0, 0, 0, 0, 0, 45, 0, 0, 0, 1]
+        reg = <0xa003a00 0x200>
+        compatible = "virtio,mmio"
+    };
+
+    virtio_mmio@a003c00 {
+        dma-coherent = []
+        interrupts = [0, 0, 0, 0, 0, 0, 0, 46, 0, 0, 0, 1]
+        reg = <0xa003c00 0x200>
+        compatible = "virtio,mmio"
+    };
+
+    virtio_mmio@a003e00 {
+        dma-coherent = []
+        interrupts = [0, 0, 0, 0, 0, 0, 0, 47, 0, 0, 0, 1]
+        reg = <0xa003e00 0x200>
+        compatible = "virtio,mmio"
+    };
+
+    gpio-keys {
+        compatible = "gpio-keys"
+
+        poweroff {
+            gpios = [0, 0, 128, 4, 0, 0, 0, 3, 0, 0, 0, 0]
+            linux,code = <0x74>
+            label = [71, 80, 73, 79, 32, 75, 101, 121, 32, 80, 111, 119, 101, 114, 111, 102, 102, 0]
+        };
+    };
+
+    pl061@9030000 {
+        phandle = <0x8004>
+        clock-names = "apb_pclk"
+        clocks = <0x8000>
+        interrupts = [0, 0, 0, 0, 0, 0, 0, 7, 0, 0, 0, 4]
+        gpio-controller = []
+        #gpio-cells = <0x2>
+        compatible = "arm,pl061\0arm,primecell"
+        reg = <0x9030000 0x1000>
+    };
+
+    pcie@10000000 {
+        interrupt-map-mask = [0, 0, 24, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 7]
+        interrupt-map = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 128, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 128, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 128, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 128, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 0, 0, 0, 4, 0, 0, 8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 128, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 128, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 4, 0, 0, 8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 128, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 0, 0, 0, 4, 0, 0, 8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 128, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 4, 0, 0, 16, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 128, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 4, 0, 0, 16, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 128, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 0, 0, 0, 4, 0, 0, 16, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 128, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 4, 0, 0, 16, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 128, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 24, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 128, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 0, 0, 0, 4, 0, 0, 24, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 128, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 4, 0, 0, 24, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 128, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 24, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 128, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 4]
+        #interrupt-cells = <0x1>
+        ranges = [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 62, 255, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 16, 0, 0, 0, 0, 0, 0, 0, 16, 0, 0, 0, 0, 0, 0, 0, 46, 255, 0, 0, 3, 0, 0, 0, 0, 0, 0, 128, 0, 0, 0, 0, 0, 0, 0, 128, 0, 0, 0, 0, 0, 0, 0, 128, 0, 0, 0, 0]
+        reg = <0x4010000000 0x10000000>
+        msi-map = [0, 0, 0, 0, 0, 0, 128, 3, 0, 0, 0, 0, 0, 1, 0, 0]
+        dma-coherent = []
+        bus-range = <0xff>
+        linux,pci-domain = <0x0>
+        #size-cells = <0x2>
+        #address-cells = <0x3>
+        device_type = "pci"
+        compatible = "pci-host-ecam-generic"
+    };
+
+    pl031@9010000 {
+        clock-names = "apb_pclk"
+        clocks = <0x8000>
+        interrupts = [0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 4]
+        reg = <0x9010000 0x1000>
+        compatible = "arm,pl031\0arm,primecell"
+    };
+
+    pl011@9000000 {
+        clock-names = [117, 97, 114, 116, 99, 108, 107, 0, 97, 112, 98, 95, 112, 99, 108, 107, 0]
+        clocks = <0x800000008000>
+        interrupts = [0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 4]
+        reg = <0x9000000 0x1000>
+        compatible = "arm,pl011\0arm,primecell"
+    };
+
+    pmu {
+        interrupts = [0, 0, 0, 1, 0, 0, 0, 7, 0, 0, 0, 4]
+        compatible = "arm,armv8-pmuv3"
+    };
+
+    intc@8000000 {
+        phandle = <0x8002>
+        reg = <0x8000000 0x10000 0x80a0000 0xf60000>
+        #redistributor-regions = <0x1>
+        compatible = "arm,gic-v3"
+        ranges = []
+        #size-cells = <0x2>
+        #address-cells = <0x2>
+        interrupt-controller = []
+        #interrupt-cells = <0x3>
+
+        v2m@8020000 {
+            phandle = <0x8003>
+            reg = <0x8020000 0x1000>
+            msi-controller = []
+            compatible = "arm,gic-v2m-frame"
+        };
+    };
+
+    flash@0 {
+        bank-width = <0x4>
+        reg = <0x0 0x4000000 0x4000000 0x4000000>
+        compatible = "cfi-flash"
+    };
+
+    cpus {
+        #size-cells = <0x0>
+        #address-cells = <0x1>
+
+        cpu-map {
+            socket0 {
+                cluster0 {
+                    core0 {
+                        cpu = <0x8001>
+                    };
+                };
+            };
+        };
+
+        cpu@0 {
+            next-level-cache = <0x0>
+            phandle = <0x8001>
+            reg = <0x0>
+            compatible = "arm,armv8"
+            device_type = "cpu"
+        };
+    };
+
+    timer {
+        interrupts = [0, 0, 0, 1, 0, 0, 0, 13, 0, 0, 0, 4, 0, 0, 0, 1, 0, 0, 0, 14, 0, 0, 0, 4, 0, 0, 0, 1, 0, 0, 0, 11, 0, 0, 0, 4, 0, 0, 0, 1, 0, 0, 0, 10, 0, 0, 0, 4]
+        always-on = []
+        compatible = "arm,armv8-timer\0arm,armv7-timer"
+    };
+
+    apb-pclk {
+        phandle = <0x8000>
+        clock-output-names = "clk24mhz"
+        clock-frequency = <0x16e3600>
+        #clock-cells = <0x0>
+        compatible = "fixed-clock"
+    };
+
+    aliases {
+        serial0 = "/pl011@9000000"
+    };
+
+    chosen {
+        stdout-path = "/pl011@9000000"
+        rng-seed = [52, 107, 143, 197, 152, 60, 54, 230, 201, 194, 23, 116, 205, 231, 131, 149, 61, 200, 105, 130, 81, 210, 49, 75, 130, 175, 16, 150, 108, 101, 97, 39]
+        kaslr-seed = <0x8d98b5d5297bba9f>
+
+        module@0x48000000 {
+            compatible = "multiboot,module\0multiboot,ramdisk"
+            reg = <0x48000000 0x0>
+        };
+    };
+};
+
+[            ][0][INFO  hermit    ] BSS starts at 0x40731718
+[            ][0][INFO  hermit    ] tls_info = Some(
+    TlsInfo {
+        start: 0x40711ff8,
+        filesz: 0x20,
+        memsz: 0x70,
+        align: 0x8,
+    },
+)
+[            ][0][INFO  paging    ] RAM starts at physical address 0x40000000
+[            ][0][INFO  paging    ] Physical address range: 1024GB
+[            ][0][INFO  paging    ] Support of 4KB pages: true
+[            ][0][INFO  paging    ] Support of 16KB pages: true
+[            ][0][INFO  paging    ] Support of 64KB pages: false
+[            ][0][INFO  mm        ] Total memory size: 504 MiB
+[            ][0][INFO  mm        ] Kernel region: 0x40600000..0x40800000
+[            ][0][INFO  mm        ] Minimum memory size: 12 MiB
+[            ][0][INFO  mm        ] Heap: size 440 MB, start address 0x800000000000
+[            ][0][INFO  mm        ] Heap is located at 0x800000000000..0x80001b800000 (0 Bytes unmapped)
+[            ][0][INFO  mm        ] FrameAlloc free list:
+        0x5c1d4000..        0x60000000 (len =          0x3e2c000, pages =            15916)
+[            ][0][INFO  mm        ] PageAlloc free list:
+    0x80001b800000..   0x1000000000000 (len =     0x7fffe4800000, pages =      34359625728)
+[            ][0][INFO  env       ] bootargs = 
+[            ][0][INFO  interrupts] Initialize generic interrupt controller
+[            ][0][INFO  interrupts] Found GIC v3 with 1 cpus
+[            ][0][INFO  interrupts] Found GIC Distributor interface at 0x8000000 (size 0x10000)
+[            ][0][INFO  interrupts] Found generic interrupt controller redistributor at 0x80a0000 (size 0xF60000)
+[    0.000005][0][INFO  processor ] 
+[    0.000120][0][INFO  processor ] ========================== CPU INFORMATION ===========================
+[    0.000406][0][INFO  processor ] Processor compatibility: arm,armv8
+[    0.000607][0][INFO  processor ] Counter frequency:       24000 KHz (from CNTFRQ_EL0)
+[    0.000849][0][INFO  processor ] ======================================================================
+[    0.001130][0][INFO  processor ] 
+[    0.001248][0][INFO  systemtime] Hermit booted on 2026-11-07 20:52:45.0 +00:00:00
+[    0.001476][0][INFO  pci       ] Mapping PCI Enhanced Configuration Space interface to virtual address 0x800020000000 (size 0x10000000)
+[    0.001975][0][INFO  pci       ] Scanning PCI Busses 0 to 255
+[    0.010141][0][INFO  pci       ] 
+[    0.010254][0][INFO  pci       ] ======================== PCI BUS INFORMATION =========================
+[    0.010525][0][INFO  pci       ] 00:00 Unknown Class [0600]: Unknown Vendor Unknown Device [1B36:0008]
+[    0.010822][0][INFO  pci       ] 00:01 Unknown Class [0200]: Unknown Vendor Unknown Device [1AF4:1041], IRQ 4, BAR1 Memory32 { address: 0x10000000, size: 0x1000, prefetchable: false }, BAR4 Memory64 { address: 0x8000000000, size: 0x4000, prefetchable: true }
+[    0.011700][0][INFO  pci       ] ======================================================================
+[    0.011975][0][INFO  pci       ] 
+[    0.012222][0][INFO  hermit    ] Hermit is running on common system!
+[    0.012416][0][INFO  pci       ] Found virtio device with device id 0x1041
+[    0.013409][0][INFO  virtio    ] device_features = F(CTRL_GUEST_OFFLOADS | MAC | MRG_RXBUF | STATUS | CTRL_VQ | CTRL_RX | CTRL_VLAN | GUEST_ANNOUNCE | CTRL_MAC_ADDR | INDIRECT_DESC | EVENT_IDX | VERSION_1 | RING_RESET | 0x100000)
+[    0.013980][0][INFO  virtio    ] driver_features = F(CSUM | MTU | MAC | MRG_RXBUF | STATUS | CTRL_VQ | MQ | INDIRECT_DESC | VERSION_1 | NOTIFICATION_DATA)
+[    0.014366][0][INFO  virtio    ] common_features = F(MAC | MRG_RXBUF | STATUS | CTRL_VQ | INDIRECT_DESC | VERSION_1)
+[    0.014672][0][INFO  virtio    ] Features have been negotiated between virtio network device 1041 and driver.
+[    0.014982][0][INFO  split     ] Created SplitVq: idx=0, size=256
+[    0.015658][0][INFO  split     ] Created SplitVq: idx=1, size=256
+[    0.015847][0][INFO  virtio    ] Network driver successfully initialized virtqueues.
+[    0.016095][0][INFO  split     ] Created SplitVq: idx=2, size=64
+[    0.016280][0][INFO  virtio    ] Device specific initialization for Virtio network device 1041 finished
+[    0.016578][0][INFO  pci       ] Network device with id 1041, has been initialized by driver!
+[    0.016896][0][INFO  pci       ] Virtio-net link is up after initialization.
+[    0.017102][0][INFO  pci       ] Virtio network driver initialized.
+[    0.017403][0][INFO  pci       ] Virtio interrupt handler at line 4
+[    0.017592][0][INFO  network   ] Try to initialize network!
+[    0.017767][0][INFO  device    ] MAC address: 52-54-00-12-34-56
+[    0.017943][0][INFO  device    ] ChecksumCapabilities { ipv4: Both, udp: Both, tcp: Both, icmpv4: Both, icmpv6: Both }
+[    0.018252][0][INFO  device    ] MTU: 1514 bytes
+[    0.018420][0][INFO  network   ] DHCP lost config!
+[    0.018628][0][INFO  network   ] DHCP config acquired!
+[    0.018792][0][INFO  network   ] IP address:   10.0.2.15/24
+[    0.018959][0][INFO  network   ] Gateway:      10.0.2.2
+[    0.019117][0][INFO  network   ] DNS server 0: 10.0.2.3
+[    0.019373][0][INFO  hermit    ] Jumping into application
+[    0.019544][0][WARN  entropy   ] Unable to read entropy! Fallback to a naive implementation!
+echo-vz listening on :7000
+connection from Some(10.0.2.2:50819)

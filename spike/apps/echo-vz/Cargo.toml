@@ -1,0 +1,16 @@
+[package]
+name = "echo-vz"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+# Stage B's app: takes a DHCP lease on the first virtio-net device and echoes
+# every line received on TCP port 7000.
+
+[target.'cfg(target_os = "hermit")'.dependencies]
+hermit = { path = "../../.work/hermit-rs/hermit", default-features = false, features = [
+	"acpi", "pci", "kernel-stack", "virtio-console", "virtio-rng",
+	"virtio-net", "dhcpv4", "tcp", "udp",
+] }
+
+[workspace]

@@ -1,0 +1,14 @@
+[package]
+name = "vsock-vz"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+# Talks to the host over virtio-vsock in both directions: connects to the
+# host's listener on port 5001, then echoes one host connection on port 5000.
+
+[target.'cfg(target_os = "hermit")'.dependencies]
+hermit = { path = "../../.work/hermit-rs/hermit", default-features = false, features = ["acpi", "pci", "virtio-console", "virtio-rng", "virtio-vsock"] }
+hermit-abi = "0.5"
+
+[workspace]

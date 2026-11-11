@@ -1,0 +1,22 @@
+[package]
+name = "relay-vz"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+# The relay end of the build link. The build NIC (HERMIT_RAW_MAC) reaches the
+# app as a packet socket; the app's own smoltcp terminates the build's TCP
+# connections for any destination and splices each to the same destination
+# through the kernel's network stack on the NAT NIC.
+
+[target.'cfg(target_os = "hermit")'.dependencies]
+hermit = { path = "../../.work/hermit-rs/hermit", default-features = false, features = [
+	"acpi", "pci", "kernel-stack", "virtio-console", "virtio-rng",
+	"virtio-net", "net-packet", "dhcpv4", "tcp", "udp",
+] }
+hermit-abi = "0.5"
+smoltcp = { version = "0.12", default-features = false, features = [
+	"alloc", "medium-ethernet", "proto-ipv4", "socket-tcp",
+] }
+
+[workspace]

@@ -1,0 +1,6 @@
+vzrun: started
+vzrun: vsock: accepted guest port 1073741823
+vzrun: vsock: guest port 1073741823 said: guest says hi
+vzrun: vsock: guest echoed: host echo test
+vzrun: vsock: echo ok
+vzrun: guest stopped

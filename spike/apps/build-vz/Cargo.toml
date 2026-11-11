@@ -1,0 +1,16 @@
+[package]
+name = "build-vz"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+# A stand-in build: a static address on its only NIC, the build link, and one
+# TCP connection to the address given after "--", expecting an echo.
+
+[target.'cfg(target_os = "hermit")'.dependencies]
+hermit = { path = "../../.work/hermit-rs/hermit", default-features = false, features = [
+	"acpi", "pci", "kernel-stack", "virtio-console", "virtio-rng",
+	"virtio-net", "tcp",
+] }
+
+[workspace]

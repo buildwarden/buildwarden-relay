@@ -1,0 +1,97 @@
+diff --git a/src/arch/aarch64/entry.rs b/src/arch/aarch64/entry.rs
+index 1c58d7a..d93a47e 100644
+--- a/src/arch/aarch64/entry.rs
++++ b/src/arch/aarch64/entry.rs
+@@ -37,8 +37,10 @@ pub unsafe fn start_rust() -> ! {
+ }
+ 
+ unsafe fn pre_init() -> ! {
++	super::checkpoint(1);
+ 	crate::log::init();
+ 	info!("Enter startup code");
++	super::checkpoint(2);
+ 
+ 	/* disable interrupts */
+ 	/*
+diff --git a/src/arch/aarch64/mod.rs b/src/arch/aarch64/mod.rs
+index 84b86cb..a350b1a 100644
+--- a/src/arch/aarch64/mod.rs
++++ b/src/arch/aarch64/mod.rs
+@@ -88,6 +88,29 @@ pub unsafe fn get_memory(memory_size: u64) -> u64 {
+ 	(copy + fdt_size).align_up(LargePageSize::SIZE as u64)
+ }
+ 
++/// Boot tracing for machines with no console: with `vzstop=<n>` in the
++/// device tree's bootargs, checkpoint `n` powers the machine off through
++/// PSCI, so a clean stop shows the boot got that far and a hang that it did
++/// not.
++#[cfg(feature = "vz")]
++pub fn checkpoint(n: u32) {
++	let Some(args) = fdt().chosen().bootargs() else {
++		return;
++	};
++	let Some(at) = args.find("vzstop=") else {
++		return;
++	};
++	let digits = args[at + 7..].split(' ').next().unwrap_or("");
++	if digits.parse::<u32>() == Ok(n) {
++		unsafe {
++			asm!("hvc #0", in("x0") 0x8400_0008u64, options(noreturn));
++		}
++	}
++}
++
++#[cfg(not(feature = "vz"))]
++pub fn checkpoint(_n: u32) {}
++
+ pub fn find_kernel() -> &'static [u8] {
+ 	fdt().find_kernel().unwrap()
+ }
+@@ -118,6 +141,7 @@ pub unsafe fn boot_kernel(kernel_info: LoadedKernel) -> ! {
+ 	unsafe {
+ 		page_tables::enable();
+ 	}
++	checkpoint(7);
+ 
+ 	if let Some(device_type) = fdt
+ 		.find_node("/memory")
+@@ -151,6 +175,7 @@ pub unsafe fn boot_kernel(kernel_info: LoadedKernel) -> ! {
+ 	let stack = stack::get_stack_ptr();
+ 	let entry = ptr::with_exposed_provenance(entry_point.try_into().unwrap());
+ 	let raw_boot_info = boot_info.write();
++	checkpoint(8);
+ 
+ 	unsafe { enter_kernel(stack, entry, raw_boot_info) }
+ }
+diff --git a/src/os/none/mod.rs b/src/os/none/mod.rs
+index 6446b4b..97c5e7c 100644
+--- a/src/os/none/mod.rs
++++ b/src/os/none/mod.rs
+@@ -19,12 +19,18 @@ pub(crate) unsafe extern "C" fn loader_main() -> ! {
+ 	let loader_start = elf_symbols::executable_start();
+ 	let loader_end = elf_symbols::executable_end();
+ 	info!("Loader: [{loader_start:p} - {loader_end:p}]");
++	#[cfg(target_arch = "aarch64")]
++	arch::checkpoint(3);
+ 
+ 	let kernel = arch::find_kernel();
+ 	let kernel = KernelObject::parse(kernel).unwrap();
++	#[cfg(target_arch = "aarch64")]
++	arch::checkpoint(4);
+ 
+ 	let mem_size = kernel.mem_size();
+ 	let kernel_addr = unsafe { arch::get_memory(mem_size as u64) };
++	#[cfg(target_arch = "aarch64")]
++	arch::checkpoint(5);
+ 	let kernel_addr = kernel.start_addr().unwrap_or(kernel_addr);
+ 	let memory = unsafe {
+ 		slice::from_raw_parts_mut(
+@@ -34,6 +40,8 @@ pub(crate) unsafe extern "C" fn loader_main() -> ! {
+ 	};
+ 
+ 	let kernel_info = kernel.load_kernel(memory, memory.as_ptr() as u64);
++	#[cfg(target_arch = "aarch64")]
++	arch::checkpoint(6);
+ 
+ 	unsafe { arch::boot_kernel(kernel_info) }
+ }

@@ -1,0 +1,191 @@
+[            ][0][[32mINFO [0m hermit    ] Welcome to Hermit 0.13.2
+[            ][0][[32mINFO [0m hermit    ] Git version: v0.13.2 (dirty)
+[            ][0][[32mINFO [0m hermit    ] Architecture: aarch64
+[            ][0][[32mINFO [0m hermit    ] Enabled features: acpi, pci, virtio, virtio_console, virtio_rng
+[            ][0][[32mINFO [0m hermit    ] Built on Sun, 8 Nov 2026 01:07:43 +0000
+[            ][0][[32mINFO [0m hermit    ] Kernel starts at 0x70200000
+[            ][0][[32mINFO [0m hermit    ] FDT:
+ / {
+    #address-cells = <0x2>
+    #size-cells = <0x2>
+    interrupt-parent = <0x1>
+
+    clock {
+        #clock-cells = <0x0>
+        clock-frequency = <0x16e3600>
+        phandle = <0x2>
+        clock-output-names = "clk24mhz"
+        compatible = "fixed-clock"
+    };
+
+    hypervisor {
+        compatible = "apple,virtualization-generic-platform"
+    };
+
+    memory {
+        device_type = "memory"
+        reg = <0x70000000 0x20000000>
+    };
+
+    gic {
+        phandle = <0x1>
+        compatible = "arm,gic-v3"
+        #address-cells = <0x2>
+        #size-cells = <0x2>
+        #interrupt-cells = <0x3>
+        interrupt-controller = []
+        ranges = []
+        reg = <0x10000000 0x10000 0x10010000 0x20000>
+    };
+
+    pl061 {
+        compatible = "arm,pl061\0arm,primecell"
+        clocks = <0x2>
+        clock-names = "apb_pclk"
+        phandle = <0x3>
+        reg = <0x20060000 0x1000>
+        gpio-controller = []
+        #gpio-cells = <0x2>
+        interrupts = [0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 4]
+    };
+
+    gpio-keys {
+        compatible = "gpio-keys"
+
+        power {
+            label = [71, 80, 73, 79, 32, 75, 101, 121, 32, 80, 111, 119, 101, 114, 0]
+            linux,code = <0x74>
+            debounce-interval = <0x0>
+            gpios = [0, 0, 0, 3, 0, 0, 0, 6, 0, 0, 0, 0]
+        };
+    };
+
+    pl031 {
+        compatible = "arm,pl031\0arm,primecell"
+        reg = <0x20050000 0x1000>
+        interrupts = [0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 4]
+        clocks = <0x2>
+        clock-names = "apb_pclk"
+    };
+
+    psci {
+        compatible = "arm,psci-0.2"
+        method = "hvc"
+        cpu_off = <0x84000002>
+        cpu_on = <0xc4000003>
+        cpu_suspend = <0xc4000001>
+        migrate = <0xc4000005>
+    };
+
+    cpus {
+        #address-cells = <0x1>
+        #size-cells = <0x0>
+
+        cpu@0 {
+            device_type = "cpu"
+            compatible = "arm,arm-v8"
+            reg = <0x0>
+        };
+    };
+
+    timer {
+        compatible = "arm,armv8-timer"
+        always-on = []
+        interrupts = [0, 0, 0, 1, 0, 0, 0, 13, 0, 0, 63, 8, 0, 0, 0, 1, 0, 0, 0, 14, 0, 0, 63, 8, 0, 0, 0, 1, 0, 0, 0, 11, 0, 0, 63, 8, 0, 0, 0, 1, 0, 0, 0, 10, 0, 0, 63, 8]
+    };
+
+    pci {
+        compatible = "pci-host-ecam-generic"
+        device_type = "pci"
+        #address-cells = <0x3>
+        #size-cells = <0x2>
+        #interrupt-cells = <0x1>
+        bus-range = <0xff>
+        reg = <0x40000000 0x10000000>
+        ranges = [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 111, 255, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 80, 0, 0, 0, 0, 0, 0, 0, 80, 0, 0, 0, 0, 0, 0, 0, 31, 254, 0, 0, 3, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0]
+        interrupt-map = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 32, 0, 0, 0, 4, 0, 0, 8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 33, 0, 0, 0, 4, 0, 0, 16, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 34, 0, 0, 0, 4, 0, 0, 24, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 35, 0, 0, 0, 4, 0, 0, 32, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 36, 0, 0, 0, 4, 0, 0, 40, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 37, 0, 0, 0, 4, 0, 0, 48, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 38, 0, 0, 0, 4, 0, 0, 56, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 39, 0, 0, 0, 4, 0, 0, 64, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 40, 0, 0, 0, 4, 0, 0, 72, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 41, 0, 0, 0, 4, 0, 0, 80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 42, 0, 0, 0, 4, 0, 0, 88, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 43, 0, 0, 0, 4, 0, 0, 96, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 44, 0, 0, 0, 4, 0, 0, 104, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 45, 0, 0, 0, 4, 0, 0, 112, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 46, 0, 0, 0, 4, 0, 0, 120, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 47, 0, 0, 0, 4, 0, 0, 128, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 48, 0, 0, 0, 4, 0, 0, 136, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 49, 0, 0, 0, 4, 0, 0, 144, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 50, 0, 0, 0, 4, 0, 0, 152, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 51, 0, 0, 0, 4, 0, 0, 160, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 52, 0, 0, 0, 4, 0, 0, 168, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 53, 0, 0, 0, 4, 0, 0, 176, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 54, 0, 0, 0, 4, 0, 0, 184, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 55, 0, 0, 0, 4, 0, 0, 192, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 56, 0, 0, 0, 4, 0, 0, 200, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 57, 0, 0, 0, 4, 0, 0, 208, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 58, 0, 0, 0, 4, 0, 0, 216, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 59, 0, 0, 0, 4, 0, 0, 224, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 60, 0, 0, 0, 4, 0, 0, 232, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 61, 0, 0, 0, 4, 0, 0, 240, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 62, 0, 0, 0, 4, 0, 0, 248, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 63, 0, 0, 0, 4]
+        interrupt-map-mask = [0, 0, 248, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 7]
+    };
+
+    chosen {
+        bootargs = ""
+        kaslr-seed = <0xfd2e1fd3d5bfc1d3>
+        linux,initrd-start = <0x70030000>
+        linux,initrd-end = <0x7011c9f0>
+    };
+};
+
+[            ][0][[32mINFO [0m hermit    ] BSS starts at 0x702ca8f8
+[            ][0][[32mINFO [0m hermit    ] tls_info = Some(
+    TlsInfo {
+        start: 0x702b1220,
+        filesz: 0x20,
+        memsz: 0x70,
+        align: 0x8,
+    },
+)
+[            ][0][[32mINFO [0m paging    ] RAM starts at physical address 0x70000000
+[            ][0][[32mINFO [0m paging    ] Physical address range: 64GB
+[            ][0][[32mINFO [0m paging    ] Support of 4KB pages: true
+[            ][0][[32mINFO [0m paging    ] Support of 16KB pages: true
+[            ][0][[32mINFO [0m paging    ] Support of 64KB pages: false
+[            ][0][[32mINFO [0m mm        ] Total memory size: 508 MiB
+[            ][0][[32mINFO [0m mm        ] Kernel region: 0x70200000..0x70400000
+[            ][0][[32mINFO [0m mm        ] Minimum memory size: 9 MiB
+[            ][0][[32mINFO [0m mm        ] Heap: size 448 MB, start address 0x800000000000
+[            ][0][[32mINFO [0m mm        ] Heap is located at 0x800000000000..0x80001c000000 (0 Bytes unmapped)
+[            ][0][[32mINFO [0m mm        ] FrameAlloc free list:
+        0x8c5d9000..        0x90000000 (len =          0x3a27000, pages =            14887)
+[            ][0][[32mINFO [0m mm        ] PageAlloc free list:
+    0x80001c000000..   0x1000000000000 (len =     0x7fffe4000000, pages =      34359623680)
+[            ][0][[32mINFO [0m env       ] bootargs = 
+[            ][0][[32mINFO [0m interrupts] Initialize generic interrupt controller
+[            ][0][[32mINFO [0m interrupts] Found GIC v3 with 1 cpus
+[            ][0][[32mINFO [0m interrupts] Found GIC Distributor interface at 0x10000000 (size 0x10000)
+[            ][0][[32mINFO [0m interrupts] Found generic interrupt controller redistributor at 0x10010000 (size 0x20000)
+[    0.000002][0][[32mINFO [0m processor ] 
+[    0.000003][0][[32mINFO [0m processor ] ========================== CPU INFORMATION ===========================
+[    0.000004][0][[32mINFO [0m processor ] Processor compatibility: arm,arm-v8
+[    0.000005][0][[32mINFO [0m processor ] Counter frequency:       24000 KHz (from CNTFRQ_EL0)
+[    0.000007][0][[32mINFO [0m processor ] ======================================================================
+[    0.000008][0][[32mINFO [0m processor ] 
+[    0.000013][0][[32mINFO [0m systemtime] Hermit booted on 2026-11-08 1:08:32.0 +00:00:00
+[    0.000017][0][[32mINFO [0m pci       ] Mapping PCI Enhanced Configuration Space interface to virtual address 0x800020000000 (size 0x10000000)
+[    0.000186][0][[32mINFO [0m pci       ] Scanning PCI Busses 0 to 255
+[    0.008831][0][[32mINFO [0m pci       ] 
+[    0.008833][0][[32mINFO [0m pci       ] ======================== PCI BUS INFORMATION =========================
+[    0.008835][0][[32mINFO [0m pci       ] 00:00 Unknown Class [0600]: Unknown Vendor Unknown Device [106B:1A05]
+[    0.008865][0][[32mINFO [0m pci       ] 00:01 Unknown Class [0200]: Unknown Vendor Unknown Device [1AF4:1041], IRQ 33, BAR0 Memory64 { address: 0x100000000, size: 0x10000, prefetchable: false }, BAR2 Memory32 { address: 0x50000000, size: 0x40, prefetchable: false }
+[    0.008900][0][[32mINFO [0m pci       ] 00:05 Unknown Class [0780]: Unknown Vendor Unknown Device [1AF4:1043], IRQ 37, BAR0 Memory64 { address: 0x100010000, size: 0x10000, prefetchable: false }, BAR2 Memory32 { address: 0x50000000, size: 0x80, prefetchable: false }
+[    0.008932][0][[32mINFO [0m pci       ] ======================================================================
+[    0.008933][0][[32mINFO [0m pci       ] 
+[    0.009059][0][[32mINFO [0m hermit    ] Hermit is running on common system!
+[    0.009063][0][[32mINFO [0m pci       ] Found virtio device with device id 0x1041
+[    0.009066][0][[31mERROR[0m pci       ] Virtio driver Net is currently not active.
+[    0.009067][0][[31mERROR[0m pci       ] To use the device, recompile the kernel with the virtio-net feature.
+[    0.009068][0][[31mERROR[0m pci       ] Could not initialize virtio-pci device: Virtio driver failed: DevNotSupported(4161)
+[    0.009071][0][[32mINFO [0m pci       ] Found virtio device with device id 0x1043
+[    0.009096][0][[33mWARN [0m pci       ] Currently only mapping of prefetchable bars is supported!
+[    0.009116][0][[33mWARN [0m pci       ] Currently only mapping of prefetchable bars is supported!
+[    0.009134][0][[33mWARN [0m pci       ] Currently only mapping of prefetchable bars is supported!
+[    0.009150][0][[33mWARN [0m pci       ] Currently only mapping of prefetchable bars is supported!
+[    0.009255][0][[32mINFO [0m virtio    ] device_features = F(INDIRECT_DESC | EVENT_IDX | VERSION_1 | RING_PACKED)
+[    0.009259][0][[32mINFO [0m virtio    ] driver_features = F(VERSION_1)
+[    0.009261][0][[32mINFO [0m virtio    ] common_features = F(VERSION_1)
+[    0.009297][0][[32mINFO [0m console   ] Features have been negotiated between virtio console device 1043 and driver.
+[    0.009356][0][[32mINFO [0m split     ] Created SplitVq: idx=0, size=256
+[    0.009586][0][[32mINFO [0m split     ] Created SplitVq: idx=1, size=256
+[    0.009600][0][[32mINFO [0m pci       ] Console device with id 1043, has been initialized by driver!
+[    0.009602][0][[32mINFO [0m pci       ] Virtio console driver initialized.
+[    0.009651][0][[32mINFO [0m pci       ] Virtio interrupt handler at line 37
+[    0.009654][0][[32mINFO [0m pci       ] Switch to virtio console
+[    0.009703][0][[32mINFO [0m hermit    ] Jumping into application
+[    0.009714][0][[31mERROR[0m entropy   ] No entropy source: the processor has none and there is no virtio entropy device
+
+thread '<unnamed>' (1) panicked at /Users/jeff/.rustup/toolchains/nightly-2026-02-01-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sys/random/hermit.rs:5:27:
+range start index 18446744073709551578 out of range for slice of length 16
+[    0.009723][0][[32mINFO [0m interrupts] Number of interrupts
+[    0.009725][0][[32mINFO [0m interrupts] [0][Reschedule]: 2
+[    0.009729][0][[32mINFO [0m interrupts] [0][virtio]: 1
+exit status -1
+[    0.009732][0][[32mINFO [0m processor ] Shutting down system

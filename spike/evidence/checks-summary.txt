@@ -1,0 +1,11 @@
+PASS qemu-uart  upstream hello_world on the PL011
+PASS qemu-vcon  hello-vz on the virtio console
+PASS qemu-net  echo through a port forward: 'qemu echo 99837'
+PASS vz-hello  Hello World over VZ's virtio console
+PASS vz-net  lease 192.168.64.38 for 02:42:ac:11:fd:85, host->guest echo: 'vz echo 99837'
+PASS qemu-rng  seeded from virtio-rng: ca88bf42ba47a2897a098f383618ba4b68243bed65d803002f7fa21e56b5c776
+PASS vz-rng  two boots: 1225a61374ea57931b0dd1bb06e0e6428f3c50f8ed9adbeacf56d6095926ee41 43a52c916116ee3131704de6393fc9ad8d4117f245d7519d9c813166fafb93a8
+PASS vz-norng  no entropy device: the kernel refuses and the app does not run
+PASS vz-vsock  guest->host port 5001 and host->guest port 5000 echo
+PASS vz-pair  build 10.0.9.2 -> relay -> host, which saw 192.168.64.33:49153
+PASS vz-pair-closed  relay not reading the link: the build reached nothing
