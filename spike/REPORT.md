@@ -29,11 +29,14 @@ nine fixes, each found and proven on VZ.
 | Second NIC: relay not reading the link, the build reaches nothing | PASS (`evidence/vz-pair-closed-*.log`) |
 
 `evidence/checks-summary.txt` holds the full run; all eleven checks also pass
-from fresh clones (the patches apply cleanly to the pinned tags).
+from fresh clones of BuildWarden's Hermit forks at their `-bw.1` tags.
 
 **Scope:** the VZ escape hatch (Decision 12) is not triggered. The VZ work is
-a patch set of about 170 lines of kernel changes and one new loader target,
-all upstreamable except the loader's fixed link address. Two findings bind the
+about 170 lines of kernel changes and one new loader target, carried as
+commits on BuildWarden's Hermit forks. Most of it is bound for upstream. The
+deviations, carried by design, are fail-closed entropy, the packet sockets,
+and the loader's VZ-only Image header and fixed link address ("Carrying the
+patches" classes every commit). Two findings bind the
 relay on every hypervisor, not just VZ: **Hermit has one network interface**,
 and **aarch64 Hermit had no real entropy**. The follow-ups fixed both: a
 virtio-rng driver that fails closed without one, and a second NIC served to
@@ -51,7 +54,7 @@ VZ). vsock works on VZ too.
 - **Is vsock needed?** Not for reachability: host → relay works over NAT.
   But vsock removes a constraint and narrows the interface, so the follow-up
   tested it: Hermit's virtio-vsock driver works on VZ once four bugs in its
-  connection handling are fixed (`patches/kernel-v0.13.2-vsock.patch`), in
+  connection handling are fixed (kernel commit `f248077`), in
   both directions. It needs no Local Network permission: the host end is a
   file descriptor VZ hands to the process that owns the VM, not a socket on
   the host's network stack, and the check passes inside this session's
@@ -85,13 +88,19 @@ VZ). vsock works on VZ too.
 
 ## Patches
 
-All patches are in `patches/`. `make patched` applies the fix patches to
-fresh clones: the loader's, the kernel's six (VZ boot, entropy, vsock, VZ's
-file handle attachment, packet sockets, TCP half-close, in that order) and two one-line
-hermit-rs patches that forward the new `virtio-rng` and `net-packet`
-features.
+Every change is a commit on a `bw/` branch of BuildWarden's Hermit forks,
+tagged `-bw.1`, which `make` clones ("Carrying the patches"):
+- the loader's, on [buildwarden/hermit-loader](https://github.com/buildwarden/hermit-loader/tree/bw/v0.5.7) `bw/v0.5.7`;
+- the kernel's six (VZ boot, entropy, vsock, VZ's file handle attachment,
+  packet sockets, TCP half-close, in that order), on
+  [buildwarden/hermit-kernel](https://github.com/buildwarden/hermit-kernel/tree/bw/v0.13.2) `bw/v0.13.2`;
+- two one-line hermit-rs commits that forward the new `virtio-rng` and
+  `net-packet` features, on
+  [buildwarden/hermit-rs](https://github.com/buildwarden/hermit-rs/tree/bw/hermit-0.13.2) `bw/hermit-0.13.2`.
 
-### Loader: `patches/loader-v0.5.7-vz.patch`, a new `aarch64-vz` target
+The section headings below name each commit.
+
+### Loader: `bd578a1`, a new `aarch64-vz` target
 
 | Gap | Fix |
 |---|---|
@@ -106,7 +115,7 @@ The generic parts (`x0`, DTB copy, null console) also run on Qemu, where they
 pass the regression checks. The fixed link address is VZ-only; a PIE loader
 that relocates itself would serve both targets and is the upstreamable form.
 
-### Kernel: `patches/kernel-v0.13.2-vz.patch`
+### Kernel: `58eaa91`, VZ boot
 
 Each fix was needed on VZ. They are listed in the order the boot hit them:
 
@@ -122,7 +131,7 @@ Each fix was needed on VZ. They are listed in the order the boot hit them:
 | 8 | virtio-net rejected (`NoDevCfg`) | VZ's net device config is 17 of 24 bytes (only offered features' fields); Hermit demands the full struct | Accept a short config when the BAR holds the struct |
 | 9 | virtio-net `FEATURES_OK` refused | VZ refuses `CSUM` without `GUEST_CSUM` (Hermit can't do `GUEST_CSUM`), and requires `MTU` (Hermit asks for it) | Retry once without `CSUM`. Also stop requesting `RING_PACKED`: VZ never uses Hermit's packed queues (split queues work). The root cause is open, on Hermit's or VZ's side |
 
-### Kernel: `patches/kernel-v0.13.2-rng.patch`, entropy
+### Kernel: `0b0d1e3`, entropy
 
 | Change | Why |
 |---|---|
@@ -138,7 +147,7 @@ only `-1` as failure while the kernel returns `-ENOSYS`; that is a small
 upstream fix in std. The kernel logs `No entropy source` first. Every spike
 app now has the driver, and every Qemu check has a `virtio-rng-pci` device.
 
-### Kernel: `patches/kernel-v0.13.2-vsock.patch`, vsock connections
+### Kernel: `f248077`, vsock connections
 
 Hermit's vsock worked for a guest that listens; a guest that connects, or a
 peer that closes, hung. On VZ, in the order the test hit them:
@@ -152,7 +161,7 @@ peer that closes, hung. On VZ, in the order the test hit them:
 
 None is VZ-specific. Throughput was not measured: the test moves a few lines.
 
-### Kernel: `patches/kernel-v0.13.2-filehandle.patch`, the build link's NIC
+### Kernel: `d4c0f8c`, the build link's NIC
 
 VZ's file handle attachment (raw frames over a datagram socket) behaves
 differently from its NAT attachment in two ways, both found with the build
@@ -168,7 +177,7 @@ The first was found by streaming the log of VZ's XPC service
 which names the device and the complaint. That log is the first place to look
 for the next VZ device problem.
 
-### Kernel: `patches/kernel-v0.13.2-packet.patch`, packet sockets
+### Kernel: `2f5029d`, packet sockets
 
 Behind a `net-packet` feature (virtio-net over PCI):
 
@@ -183,7 +192,7 @@ syscall layer's `sockaddr` conversion, written like the existing arms
 beside them. The device driver is the existing virtio-net driver,
 unchanged: the build NIC is a second instance of it, not new driver code.
 
-### Kernel: `patches/kernel-v0.13.2-shutdown.patch`, TCP half-close
+### Kernel: `62346b3`, TCP half-close
 
 Hermit's TCP sockets could not be half-closed: `shutdown()` returned success
 and did nothing, and three other paths treated a half-open connection as
@@ -206,7 +215,7 @@ answering after the client's FIN) is not exercised by any check yet.
 
 `patches/loader-vz-checkpoints.patch` and `patches/kernel-vz-tracing-wip.patch`
 are the tools that found the kernel bugs, on a machine where the guest cannot
-print. Applied on top of the fix patches, they turn bootargs into one-bit
+print. Applied by hand on top of the fork checkouts, they turn bootargs into one-bit
 questions answered by whether the guest powers off (PSCI `SYSTEM_OFF`) or
 times out:
 - `vzstop=N`: did boot reach checkpoint N?
@@ -255,19 +264,19 @@ dumps, captured with a Linux probe guest (`probe/`):
    boot timestamp. Any TLS key a relay generated on aarch64 Hermit was
    effectively guessable. Now: a virtio-rng driver (VZ, Qemu and Firecracker
    all offer the device; VZ's is `00:06.0`) and failing closed
-   (`patches/kernel-v0.13.2-rng.patch`). `RNDR` where the CPU has it is still
+   (kernel commit `0b0d1e3`). `RNDR` where the CPU has it is still
    to do; no Mac guest has it today.
 3. **Packed virtqueues** do not work on VZ (patch row 9); split queues do.
    Unexplained; worth an upstream issue before relying on packed rings.
 4. **vsock connections** from the guest, and peers closing, hung (four bugs,
-   fixed in `patches/kernel-v0.13.2-vsock.patch`). Its throughput is unknown;
+   fixed in kernel commit `f248077`). Its throughput is unknown;
    the driver busy-polls and moves 8 KiB packets.
 5. Upstream nightly `nightly-2026-11-01` builds a loader that hangs
    mid-print on Qemu; `nightly-2026-08-15` (near the loader release) works.
 6. **Hermit's TCP could not half-close (fixed in the follow-up).**
    `shutdown()` was a no-op, a half-closed socket could not read its reply,
    and a server could not answer a client that had half-closed
-   (`patches/kernel-v0.13.2-shutdown.patch`).
+   (kernel commit `62346b3`).
 7. **`connect_timeout` does not time out** while the gateway's ARP goes
    unanswered (seen in `vz-pair-closed`: the build's 1-second connects never
    returned). Harmless for the relay, which only dials out over NAT, but an
@@ -290,10 +299,11 @@ dumps, captured with a Linux probe guest (`probe/`):
 ## Judgement calls made unattended
 
 1. **Location:** `spike/` on branch `spike/vz-hermit` in
-   `buildwarden/buildwarden-relay`, with a draft PR. Upstream clones and
-   downloads go in `spike/.work/` (git-ignored); the changes to them are
-   committed here as patches. Nothing has been sent upstream to hermit-os
-   (Question 3).
+   `buildwarden/buildwarden-relay`, with a draft PR. Clones of
+   BuildWarden's Hermit forks and the stock downloads go in `spike/.work/`
+   (git-ignored). The changes started here as patch files; since
+   2026-11-11 they are commits on the forks' `bw/` branches ("Carrying the
+   patches"). Nothing has been sent upstream to hermit-os (Question 3).
 2. **Toolchains:** hermit-rs's pinned nightly for apps; a second, older
    nightly for the loader (see finding 4). Both are pinned in the Makefile.
 3. **Stock artifacts** (the loader release binary and its LFS test fixture,
@@ -301,7 +311,8 @@ dumps, captured with a Linux probe guest (`probe/`):
 4. **Linux probe guest** built from the main repo's `relay-vm` kernel,
    modules and busybox, to measure VZ without Hermit.
 5. **The kernel is consumed via `HERMIT_MANIFEST_DIR`** (the hermit crate's
-   hook for an out-of-tree kernel), so hermit-rs itself is unmodified.
+   hook for an out-of-tree kernel), so hermit-rs needs no change to find it.
+   hermit-rs carries only the two commits that forward new kernel features.
 6. **Two own apps** (`apps/hello-vz`, `apps/echo-vz`) in place of upstream
    examples. `hello-vz` waits before exiting; `echo-vz` is the 20-line echo
    server from the runbook.
@@ -347,7 +358,7 @@ dumps, captured with a Linux probe guest (`probe/`):
 2. ~~Entropy.~~ Answered 2026-11-07: in scope; done here.
 3. **Upstreaming.** With the fork (Decision 18), the relay no longer waits
    on upstream, but each submission still needs your approval. May I open
-   issues and PRs on `hermit-os/kernel` (the upstream-bound patches in
+   issues and PRs on `hermit-os/kernel` (the upstream-bound commits in
    "Carrying the patches", and issues for the packed rings and
    `connect_timeout`) and `hermit-os/loader` (`aarch64-vz`, ideally as a
    PIE loader)? Deviations are offered only if you want them to be.
@@ -419,31 +430,39 @@ Open before the real relay:
 Decided 2026-11-08 (kickoff "Hermit fork", Decision 18): BuildWarden forks
 Hermit's kernel, loader and hermit-rs into the `buildwarden` GitHub org. The
 fork is both the base for upstream PRs and the home of deliberate
-deviations. In M1 the patches here become commits on the forks'
-`bw/v0.13.2` branches, each classed in `CARRIED.md`:
+deviations. Done 2026-11-11:
 
-| Patch | Class |
+| Fork | Branch | Tag the Makefile pins |
+|---|---|---|
+| [buildwarden/hermit-kernel](https://github.com/buildwarden/hermit-kernel) | `bw/v0.13.2` | `v0.13.2-bw.1` |
+| [buildwarden/hermit-loader](https://github.com/buildwarden/hermit-loader) | `bw/v0.5.7` | `v0.5.7-bw.1` |
+| [buildwarden/hermit-rs](https://github.com/buildwarden/hermit-rs) | `bw/hermit-0.13.2` | `hermit-0.13.2-bw.1` |
+
+Each branch's `CARRIED.md` classes every commit:
+
+| Commit | Class |
 |---|---|
-| `loader-v0.5.7-vz.patch` | Upstream-bound, except the fixed VZ link address (a deviation until a position-independent loader replaces it) |
-| `kernel-v0.13.2-vz.patch` | Upstream-bound |
-| `kernel-v0.13.2-rng.patch` | Deviation (fail-closed entropy). The driver itself may still be offered upstream |
-| `kernel-v0.13.2-vsock.patch` | Upstream-bound |
-| `kernel-v0.13.2-filehandle.patch` | Upstream-bound |
-| `kernel-v0.13.2-packet.patch` | Deviation (the relay's build link) |
-| `kernel-v0.13.2-shutdown.patch` | Upstream-bound |
-| `hermit-rs-0.13.2-rng.patch`, `-packet.patch` | Follow their kernel patches |
+| Loader `bd578a1`, the `aarch64-vz` target | Deviation until split: the generic parts (`x0`, the device tree copy, the null console) go upstream on their own; the image header and fixed link address stay until a position-independent loader replaces them |
+| Kernel `58eaa91`, VZ boot | Upstream-bound |
+| Kernel `0b0d1e3`, entropy | Deviation (fail-closed entropy). The driver itself may still be offered upstream |
+| Kernel `f248077`, vsock | Upstream-bound |
+| Kernel `d4c0f8c`, file handle NIC | Upstream-bound |
+| Kernel `2f5029d`, packet sockets | Deviation (the relay's build link) |
+| Kernel `62346b3`, TCP half-close | Upstream-bound |
+| hermit-rs `4fc4125`, `e417545`, feature forwards | Follow their kernel commits: deviations |
 
-Until then the spike keeps its pinned tags plus patch files. The kernel is
-built from any checkout named by `HERMIT_MANIFEST_DIR`, so moving to the
-fork changes only where the Makefile clones from and which tag it pins.
+The forks replace the patch files the spike used to apply. `patches/` now
+holds only the boot-tracing tools. The kernel is still built from the
+checkout named by `HERMIT_MANIFEST_DIR`, so the fork changed only where the
+Makefile clones from and which tags it pins.
 
 ## Files
 
 | Path | What |
 |---|---|
-| `Makefile` | `make checks` builds everything from the pinned tags plus patches and runs the checks; `stock`, `vz-stock`, `stubs`, `probe`, `probe-sibling` rerun the earlier experiments |
+| `Makefile` | `make checks` builds everything from the fork tags and runs the checks; `stock`, `vz-stock`, `stubs`, `probe`, `probe-sibling` rerun the earlier experiments |
 | `checks.sh` | The eleven checks |
-| `patches/` | Loader, kernel (VZ, entropy, vsock, file handle NIC, packet sockets, TCP half-close) and hermit-rs fixes; boot-tracing patches |
+| `patches/` | The boot-tracing patches, applied by hand on top of the fork checkouts |
 | `apps/` | `hello-vz` (Stage A), `echo-vz` (Stage B), `entropy-vz`, `vsock-vz`, `relay-vz` and `build-vz` (the second NIC) |
 | `vzpair/` | Swift runner for the relay and build VMs joined by a socketpair, with a host echo server as the destination |
 | `vzrun/` | Swift VZ runner (Linux boot loader, virtio console to a file, NAT, optional fixed MAC, entropy device unless `--no-rng`, vsock test with `--vsock`) |

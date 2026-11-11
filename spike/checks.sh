@@ -1,6 +1,7 @@
 #!/bin/sh
-# The spike's acceptance checks against the patched loader and kernel
-# (patches/), each printing PASS or FAIL:
+# The spike's acceptance checks against the loader and kernel from
+# BuildWarden's Hermit forks (the Makefile's fork tags), each printing PASS
+# or FAIL:
 #
 #   qemu-uart     upstream hello_world, Qemu virt, PL011 console
 #   qemu-vcon     hello-vz, Qemu virt, modern virtio-console over PCI

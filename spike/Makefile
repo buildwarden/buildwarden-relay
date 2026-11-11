@@ -1,12 +1,22 @@
 # VZ spike: Hermit on Apple Virtualization (M0). See REPORT.md.
 #
-# Upstream sources and release artifacts land in .work/ (git-ignored), build
-# and run output in out/. Every upstream version is in the block below, the
-# one place to bump (Decision 17).
+# Sources and release artifacts land in .work/ (git-ignored), build and run
+# output in out/. Every version is in the block below, the one place to bump
+# (Decisions 17 and 18).
+#
+# The kernel, loader and hermit-rs come from BuildWarden's Hermit forks:
+# each fork tag is an upstream tag plus the commits listed in that branch's
+# CARRIED.md. The upstream tags are kept for the stock release artifacts.
+# A bump means a new bw/<tag> branch and fork tag in each fork, then new
+# values here.
 
 HERMIT_TAG   := hermit-0.13.2
 KERNEL_TAG   := v0.13.2
 LOADER_TAG   := v0.5.7
+FORK_ORG     := https://github.com/buildwarden
+HERMIT_FORK_TAG := $(HERMIT_TAG)-bw.1
+KERNEL_FORK_TAG := $(KERNEL_TAG)-bw.1
+LOADER_FORK_TAG := $(LOADER_TAG)-bw.1
 TOOLCHAIN    := nightly-2026-02-01
 # The loader (and host-side tools) need a newer nightly than hermit-rs pins;
 # nightly-2026-11-01 builds a loader that hangs mid-boot, so this is pinned
@@ -34,7 +44,7 @@ OUT  := out
 export PATH := /opt/homebrew/opt/rustup/bin:$(HOME)/.cargo/bin:$(PATH)
 LLVM  = $(firstword $(wildcard $(HOME)/.rustup/toolchains/$(TOOLCHAIN)-*/lib/rustlib/*/bin))
 
-# Source builds, from the pinned tags plus patches/ (see REPORT.md).
+# Source builds, from the fork tags (see REPORT.md).
 LOADER_ELF := $(WORK)/loader/target/release/hermit-loader-aarch64-elf
 LOADER_VZ  := $(WORK)/loader/target/release/hermit-loader-aarch64-vz
 LOADER_IMG := $(OUT)/hermit-loader-vz.Image
@@ -53,48 +63,34 @@ VZRUN := $(OUT)/vzrun
 VZPAIR := $(OUT)/vzpair
 STUBS := control spin dtb pc uart ecam
 
-# Hermit apps build against the patched kernel checkout, not the one
+# Hermit apps build against the forked kernel checkout, not the one
 # hermit-rs would fetch (the hermit crate's HERMIT_MANIFEST_DIR).
 HERMIT_BUILD := HERMIT_MANIFEST_DIR=$(abspath $(WORK)/kernel) cargo +$(TOOLCHAIN) build \
 	-Zbuild-std=std,panic_abort -Zbuild-std-features=compiler-builtins-mem \
 	--target aarch64-unknown-hermit --release
 
-.PHONY: all sources patched loader apps qemu checks stock qemu-stock header vz-stock \
+.PHONY: all sources loader apps qemu checks stock qemu-stock header vz-stock \
 	stubs probe probe-sibling clean
 
 all: checks
 
-# --- Upstream sources ---------------------------------------------------------
+# --- Sources ------------------------------------------------------------------
 
 $(WORK)/hermit-rs:
-	git clone -q --depth 1 -b $(HERMIT_TAG) https://github.com/hermit-os/hermit-rs $@
+	git clone -q --depth 1 -b $(HERMIT_FORK_TAG) $(FORK_ORG)/hermit-rs $@
 $(WORK)/loader:
-	git clone -q --depth 1 -b $(LOADER_TAG) https://github.com/hermit-os/loader $@
+	git clone -q --depth 1 -b $(LOADER_FORK_TAG) $(FORK_ORG)/hermit-loader $@
 $(WORK)/kernel:
-	git clone -q --depth 1 -b $(KERNEL_TAG) https://github.com/hermit-os/kernel $@
+	git clone -q --depth 1 -b $(KERNEL_FORK_TAG) $(FORK_ORG)/hermit-kernel $@
 
 sources: $(WORK)/hermit-rs $(WORK)/loader $(WORK)/kernel
 
-# The patches, applied once to fresh clones in this order: the VZ boot fixes
-# (*-vz.patch), the virtio-rng driver (*-rng.patch), the vsock fixes
-# (*-vsock.patch), virtio-net on VZ's file handle attachment
-# (*-filehandle.patch), packet sockets for the build link (*-packet.patch)
-# and TCP half-close (*-shutdown.patch). The *-checkpoints and *-tracing
-# patches are the boot-tracing tools; apply them by hand on top when
-# debugging (see REPORT.md, "Boot tracing").
-KERNEL_PATCHES := $(addprefix patches/kernel-v0.13.2-,vz.patch rng.patch vsock.patch \
-	filehandle.patch packet.patch shutdown.patch)
-HERMIT_RS_PATCHES := $(addprefix patches/hermit-rs-0.13.2-,rng.patch packet.patch)
-$(WORK)/.patched: patches/loader-v0.5.7-vz.patch $(KERNEL_PATCHES) $(HERMIT_RS_PATCHES) \
-		| sources
-	git -C $(WORK)/loader apply $(abspath patches/loader-v0.5.7-vz.patch)
-	for p in $(abspath $(KERNEL_PATCHES)); do git -C $(WORK)/kernel apply $$p || exit 1; done
-	for p in $(abspath $(HERMIT_RS_PATCHES)); do git -C $(WORK)/hermit-rs apply $$p || exit 1; done
-	touch $@
-patched: $(WORK)/.patched
+# patches/ keeps only the boot-tracing tools (*-checkpoints, *-tracing).
+# Apply them by hand on top of the fork checkouts when debugging (see
+# REPORT.md, "Boot tracing").
 
 # The loader for Qemu (aarch64-elf) and for VZ (aarch64-vz, an arm64 Image).
-loader: $(WORK)/.patched
+loader: sources
 	cd $(WORK)/loader && cargo +$(LOADER_TOOLCHAIN) xtask build --target aarch64-elf --release
 	cd $(WORK)/loader && cargo +$(LOADER_TOOLCHAIN) xtask build --target aarch64-vz --release
 	mkdir -p $(OUT)
@@ -103,7 +99,7 @@ loader: $(WORK)/.patched
 # Upstream hello_world, and the spike's apps (apps/). Every app has the
 # virtio-rng driver: without an entropy source the kernel fails closed and
 # Rust's std panics before main.
-apps: $(WORK)/.patched
+apps: sources
 	cd $(WORK)/hermit-rs && $(HERMIT_BUILD) -p hello_world \
 		--features hermit/virtio-console,hermit/virtio-rng
 	for app in hello-vz echo-vz entropy-vz vsock-vz relay-vz build-vz; do \
