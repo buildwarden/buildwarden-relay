@@ -279,6 +279,89 @@ put VMs directly on a LAN.
 4. **Don't request `com.apple.vm.networking`.** It buys only bridged mode,
    which fails the gate.
 
+## Is the socket pair strong enough, and can every driver use it?
+
+This section comes from reading the native drivers at
+`~/src/buildwarden-native` (`driver/vz`, `driver/qemu`, `driver/hyperv`,
+`driver/firecracker`). Nothing in this section was run.
+
+### Strength against the gate
+
+The socket pair meets the gate *by construction*, not by configuration:
+
+- **No host network-stack endpoint.** The link has no host interface,
+  address or route. So host IP forwarding, pf, InternetSharing and the
+  host's listeners are irrelevant. The vmnet tests t2 and t4 show why that
+  matters: any segment the host joins exposes every `*:port` listener.
+- **Exactly two endpoints.** The warden creates both descriptors, and there
+  is no path, port or switch to join later.
+- **One link per build.** Builds can't reach each other at layer 2.
+- **No privilege.** No root and no Apple-managed entitlement are involved.
+
+It does **not** cover:
+
+1. **The processes holding the ends.** These are the warden, VZ's
+   `com.apple.Virtualization.VirtualMachine` service, and the relay.
+   - `driver/vz/network_unix.go` keeps `BuildSocketFD` open in the warden
+     until `Close()` at the end of the build.
+   - A warden bug that wrote to it would inject frames the ledger never saw.
+   - Hardening: close the warden's copies once both consumers hold theirs.
+     Test first that VZ has duplicated the descriptor by then.
+2. **Other guest devices.** The link says nothing about vsock, virtio-fs,
+   clipboard/SPICE or the console. `driver/vz/network.go` states these as
+   rules ("no virtio-fs, no shared directory, no clipboard, no NAT", plus a
+   NAT guard). They should be asserted against the actual
+   `VZVirtualMachineConfiguration` before every boot: exactly one network
+   device, a file-handle attachment, and no socket or directory-sharing
+   devices.
+3. **Threats every design shares.** These are hypervisor escape and a
+   same-uid process that can debug the warden.
+4. **Lost frames.** A datagram socket drops frames on buffer overflow. That
+   costs reliability, not isolation: a dropped frame never leaves.
+
+### Portability across drivers
+
+| Driver | Build link today | Socket pair possible? | Equivalent that passes the gate |
+|---|---|---|---|
+| VZ | `AF_UNIX`/`SOCK_DGRAM` socket pair → `VZFileHandleNetworkDeviceAttachment` | yes (in use) | — |
+| QEMU (Linux, macOS) | `-netdev stream,server=on,addr.type=unix,addr.path=<workDir>/vlan.sock` between the relay and build QEMUs (`driver/qemu/vm.go`) | **yes**: QEMU ≥ 7.2 `stream`/`dgram` netdevs accept an inherited descriptor (`addr.type=fd` / `local.type=fd`) | Today's named socket is point to point, but has a file on disk that any same-uid process could connect to before the build does. A warden-made socket pair inherited by both QEMUs removes that. |
+| Firecracker (Linux) | TAP devices (`driver/firecracker/slots_linux.go`) | **no**: Firecracker's only network backend is TAP | TAP plus the host posture checks the driver runs. Isolation rests on host configuration, so it needs root/`CAP_NET_ADMIN` and a re-check per build. |
+| Hyper-V (Windows) | A fresh Private vSwitch per build (`provision_local_windows.go`, `driver_windows.go`) | **no**: Hyper-V has no descriptor-backed NIC, and Windows has no `SOCK_DGRAM` socket pair | A per-build Private switch has no host vNIC, so it passes the gate. It is admin-owned host configuration, so it is re-asserted each build (the driver already does). |
+| QEMU (Windows) | — | no (no `AF_UNIX` datagram socket pair) | Hyper-V or WHPX with a private switch |
+
+**Conclusion.** The socket pair can't be the *mechanism* for every driver,
+but its guarantee can be the *contract* for all of them:
+
+> The build VM's only network device is a link whose single peer is the
+> relay, with no host network-stack endpoint, created fresh for each build.
+
+Each driver satisfies it its own way:
+
+- VZ: socket pair;
+- QEMU: inherited socket pair (a change from today);
+- Hyper-V: per-build Private vSwitch;
+- Firecracker: TAP plus posture checks.
+
+**One driver-independent test suite should prove it.** The t2–t8 cases
+here are the template. From the build VM, try:
+
+- the relay: expect an answer;
+- the segment's other addresses, including a host address if one exists;
+- the host's LAN address;
+- a sibling VM on another segment;
+- a public address.
+
+Only the relay may answer.
+
+### Follow-ups
+
+- **QEMU:** replace the named `vlan.sock` with a warden-created socket pair
+  inherited by both QEMU processes.
+- **VZ:**
+  - close the warden's copies of the pair once the VMs hold theirs;
+  - assert the build VM's device list before boot.
+- **All drivers:** a shared build-link conformance test, as above.
+
 ## Files
 
 - `vmnetprobe/main.swift`: asks each API (bridged validation, vmnet custom
