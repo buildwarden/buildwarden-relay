@@ -1130,8 +1130,7 @@ Inside, `xtask` does these in order, each at a fixed path under `/work`:
   that is the mechanism, because the alternative does not reach far enough:
   the kernel is compiled by a nested cargo that has had `RUSTFLAGS` and
   `CARGO_ENCODED_RUSTFLAGS` removed, so `--remap-path-prefix` given to the
-  outer build never applies to the kernel or to the standard library built
-  with it. Where `xtask`'s own cargo call does control the flags, which is
+  outer build never applies to the kernel. Where `xtask`'s own cargo call does control the flags, which is
   `relay-native`, it also passes `--remap-path-prefix` for the workspace
   root, cargo's home and rustup's home (to `/relay`, `/cargo`, `/rustup`),
   so that M3's host-mode binaries for macOS, which cannot be built in this
