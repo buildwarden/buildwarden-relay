@@ -1118,9 +1118,9 @@ Against the text at `13ce286`, after the revision of 2026-11-14:
   every change to the relay, and to what guards or builds it, as tripping
   GLOBAL-06 (**Rules mirrored**), so TEST-08 as written binds every relay
   release, `v0.0.1` included. Three facts stand against that. No suite
-  exists: the main repository's `security-suite` item was closed for
-  re-intake after the freeze (the umbrella's Decision 14), the freeze
-  ends no earlier than wave 4 (its a4), and FLOW-20 exempts only fixes
+  exists: the main repository's `security-suite` item was closed, to go
+  through intake again after the freeze (the umbrella's Decision 14),
+  the freeze ends no earlier than wave 4 (its a4), and FLOW-20 exempts only fixes
   for regressions and for security problems. The umbrella's own list of
   what the suite should exercise names S2, S3 and M6, and no relay
   release before M6. And no rule gives a way to waive a MUST rule: the
@@ -1183,7 +1183,7 @@ Against the text at `13ce286`, after the revision of 2026-11-14:
   loop repository", which was half of P1's done-when. With one queue,
   adoption is LOOP-08's six steps as the `loop-contract` design proposes
   them, and a repository's work being in the queue is not one of them:
-  that design lists it "beyond the six steps", as what P1's later items
+  that design puts it outside the six steps, as what P1's later items
   owe. Options: (A) M1 is done when M1a is done, the six steps are done
   (task 10) and the conformance pin is set (task 12). The first relay
   item that `wf` gates is P1's to complete, with whichever relay work is
