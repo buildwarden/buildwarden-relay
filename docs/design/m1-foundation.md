@@ -160,9 +160,9 @@ What M1 does not do is build a relay. `relay-core` starts in M2.
   the precedent this design follows: `linux-6.1.191.tar.xz` checked against
   a `sha256` copied from kernel.org's signed list.
 - The S1 design: `docs/design/seam-specs.md` on branch `feat/seam-specs`,
-  read on 2026-11-14 at `618ae78`. Its Design step is done and it waits for
-  its design review; it is being revised, so it is cited here by section
-  and question, not by line. It plans a Go harness, `bw-conformance`, in
+  read on 2026-11-14 at `618ae78` and in the revision then being made to
+  it for one queue. Its Design step is done and it waits for its design
+  review; it is cited here by section and question, not by line. It plans a Go harness, `bw-conformance`, in
   `buildwarden/buildwarden-specs`, released as a module tag and as static
   binaries with a `SHA256SUMS` file (its Decision 5, and **Releases and how
   they are consumed**), driven by a *target file* (TOML) that names a
@@ -2334,12 +2334,11 @@ depends on the harness existing:
 The S1 design (**Releases and how they are consumed**) says the relay
 repository consumes a release with its own target files, "through the
 module if its CI has Go or through the release binary and its checksum",
-and that this wiring is M1's. As read on 2026-11-14 it adds "in the
-relay's queue"; with one queue that is an item which names this
-repository, or, until the queue can hold one, task 12 (a17). This design
-takes the binary: the relay's CI has no Go toolchain and needs none. The
-S1 design does not yet fix the binaries' names or URLs, so the URL is a
-pinned value, not a pattern in code.
+and that this wiring is M1's, in the relay repository. Until the queue
+can hold an item that names this repository, that is task 12 (a17). This
+design takes the binary: the relay's CI has no Go toolchain and needs
+none. The S1 design does not yet fix the binaries' names or URLs, so the
+URL is a pinned value, not a pattern in code.
 
 M1b, once `buildwarden-specs` has its first release: set the three values,
 and prove the wiring once, by hand, by running the harness from this
@@ -2347,12 +2346,19 @@ repository's CI against the Go relay's published image with the main
 repository's target file for it. The S1 design keeps that file in the main
 repository, at `tools/conformance/targets/relay-oci.toml`, and this
 repository does not copy it. A separate workflow,
-`conformance-dispatch.yml`, runs on `workflow_dispatch` only and takes two
-inputs: the main repository commit to read the target file from, and the
-file's SHA-256. It fetches the file at that commit, checks the hash, and
+`conformance-dispatch.yml`, runs on `workflow_dispatch` only and takes
+three inputs: the main repository commit to read the target file from, the
+file's SHA-256, and the digest of the Go relay's published image. It
+fetches the file at that commit and checks the hash. The S1 design's
+target file names the image that the main repository's `make conformance`
+builds locally (`buildwarden-relay:conformance`, under **The harness**),
+not the published one, so the workflow pulls `ghcr.io/buildwarden/relay`
+at the given digest and gives it the name the target file uses. Then it
 runs `cargo xtask conformance --target <file>`. That run gates nothing and
 adds no target here; it shows that download, verification and execution
-work before M2 depends on them.
+work before M2 depends on them. The S1 design's relay targets run on
+Linux, in a sandbox the launcher builds from namespaces; what that needs
+of a hosted runner is found by task 12's run.
 
 M2 adds the first targets that must pass (`relay-native` through the `exec`
 launcher, the OCI image through the `oci` launcher). M3 adds the unikernel,
