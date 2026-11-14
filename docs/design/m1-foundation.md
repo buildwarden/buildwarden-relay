@@ -66,7 +66,9 @@ Rule IDs (`GLOBAL-06`, `RELAY-03`, `FLOW-18`, ...) are the main repository's,
 in its `docs/development/` at `b903f65`. "Decision N" is always the
 umbrella's Decision N; this design's own decisions are D1 to D15. Its
 assumptions are a1 to a28; the umbrella's and other designs' are named as
-such ("the umbrella's a11", "`loop-contract`'s a18"). "Kickoff" is the document *BuildWarden Relay
+such ("the umbrella's a11", "`loop-contract`'s a18"). LOOP-01 to LOOP-09
+are the rules the `loop-contract` design proposes; they are not on `main`
+yet. "Kickoff" is the document *BuildWarden Relay
 Unikernel - Fork Kickoff* (2026-11-07), "decisions table" is *Relay Fork -
 Decisions for Jeff* (2026-11-07), and "Loop Contract draft" is *BuildWarden
 Loop Contract* (draft, 2026-11-07). None of the three is in a repository yet;
@@ -407,7 +409,7 @@ settled here. Each is a question for Jeff:
 | Seam 8's forms: "host-mode binary per platform, unikernel image, appliance image, OCI image" | Host mode is M3's (Decision 11). Whether M1's stub release already lists a `host-binary` form for the Linux binary it builds | a27 |
 | The VZ networking report is cited as "`spike/vznet/REPORT.md` on its branch `spike/vz-net-entitlements`" | That branch holds host details; a15's recommended option ends with the branch deleted and a redacted copy on `main`, so the umbrella's pointer goes stale. Deleting it meets FLOW-16, and correcting the pointer amends an archived design | a15, a25, a28 |
 | "What the TEST-08 suite should exercise: for S2 ...; for S3 ...; for M6, the existing relay cases against each release form" | No relay release before M6 is on that list, the suite does not exist, and its item is closed until after the freeze (Decision 14). TEST-08 as written binds a release that trips GLOBAL-06, which this design reads every relay release as doing | a24 |
-| "The repository goes public" at M1, and M1 includes "the Loop Contract adopted" | Whether M1 is done at adoption, or only when a relay item has completed from the one queue, which waits for `loop-repository` | a26 |
+| M1 includes "the Loop Contract adopted", and P1 is done when "the relay's loop" completes an item | With one queue, adoption no longer includes a queue. Whether M1 is done at adoption, or only when a relay item has completed from the one queue, which waits for `loop-repository` | a26 |
 
 **The umbrella's sentences on queues.** Where this design quotes the
 umbrella it quotes the text merged at `b903f65`. One queue changes its
@@ -2204,7 +2206,7 @@ waits for S1's release.
 
 Decision 16 puts this in M1; the umbrella's a11 says who acts. The list is
 run once, in order, and its results are recorded in the pull request that
-closes M1a. "Agent" means a session prepares or checks; "Jeff" means only
+closes M1a (task 9's last, docs-only pull request). "Agent" means a session prepares or checks; "Jeff" means only
 he, or an attended session on his word in that session, does it.
 
 Before the change:
@@ -2231,10 +2233,13 @@ Before the change:
    and in the old patch files' headers.
 3. **Pull request and issue text** (Jeff). Pull request 1's description and
    comments become public with the repository, as do existing Actions logs.
-4. **Branches** (Jeff). Merged branches are deleted (FLOW-16). The vznet
+4. **Branches** (Jeff). Merged branches are deleted (FLOW-16):
+   `spike/vz-hermit`, merged as pull request 1 before the deletion
+   setting was on, by hand; the task branches by the setting. The vznet
    branch is resolved per a15. If that is option A, the redaction pull
-   request merges first; Jeff then deletes the branch, as his named
-   exception to FLOW-16, since its two commits are not in trunk; and
+   request merges first; Jeff then keeps the branch's two commits
+   privately and deletes it, on the reading of FLOW-16 he confirmed in
+   a25, or after the process item that question names if he did not; and
    before step 10 he confirms that those commits no longer resolve on the
    remote by ID, or has the host remove them. No agent deletes a remote
    branch.
@@ -2249,37 +2254,44 @@ Before the change:
 7. **Session records** (agent). `.entire/settings.json` names the private
    sessions repository; `tools/flow18-check.sh origin` passes; the remote
    carries no `entire/` ref.
-8. **Secrets and access in settings** (Jeff). No Actions secret is needed
-   by any M1 workflow; deploy keys, webhooks and collaborators are as
-   intended.
+8. **Secrets and access in settings** (Jeff). No configured Actions
+   secret is needed by any M1 workflow: each job uses only its own token,
+   with the permissions **CI** lists. Deploy keys, webhooks and
+   collaborators are as intended.
 9. **CI** (agent). `ci-ok` and `sessions-private` are green on `main`.
    While the repository is private, `sessions-private` passes only because
-   its checkout keeps the job's token (**CI**).
+   its checkout keeps the job's token, and `images` and `images-rebuild`
+   pull the builder image, whose package is still private, with the job's
+   token (**CI**).
 
 The change, in one sitting (Jeff):
 
 10. Change the visibility.
 11. Protect `main`: pull request required, `ci-ok` and `sessions-private`
-    required, no force-push, no deletion; turn on "Automatically delete
-    head branches". Before step 10 if the plan allows it (a16).
+    required, no force-push, no deletion. This is the first moment the
+    host offers it: on the current plan a private repository's branches
+    cannot be protected (a16). "Automatically delete head branches" is
+    already on, from before task 0 merged.
 12. Turn on code scanning (a12), secret scanning with push protection,
     dependency alerts and private vulnerability reporting.
 13. Actions: the default token read-only; workflows from first-time
     contributors need approval.
 14. Make the `relay-builder` package public, and confirm the three Hermit
-    forks are public, so that a third party can rerun a build. Whether the
-    forks are public today was not determined: this session's access to
-    them is authenticated. If they are private, cargo's fetch of the
-    `hermit-rs` fork and `xtask fetch` fail in CI without a credential,
-    which no M1 workflow carries, and task 2 finds that out first.
+    forks are public, so that a third party can rerun a build. Read with
+    `gh api` on 2026-11-14, all three forks are public, so cargo's fetch
+    of the `hermit-rs` fork and `xtask fetch` need no credential. The
+    pull request that follows removes the registry login from the jobs
+    that pull the builder (**CI**).
 
 After:
 
-15. `v0.0.1` (a13), once the VZ boot of the `aarch64-vz` form is recorded.
+15. `v0.0.1` (a13), once task 9's release workflow has merged and the VZ
+    boot of the tagged commit's `aarch64-vz` form is recorded (task 7).
 16. The main repository's book and README link here, and the umbrella's
     pointer to the VZ networking report is corrected if a15 was confirmed
     as A (it names a branch that no longer exists). Both are changes in
-    the main repository's queue, not this one.
+    the main repository, made by the item a28 describes. This design
+    files no item; the step is done when that one exists.
 
 ### Conformance
 
@@ -2305,16 +2317,20 @@ depends on the harness existing:
   is in this repository, so the release page is not trusted on its own),
   and runs it once for each file in `conformance/targets/`.
 
-The S1 draft says a relay repository may consume a release "through the
-module if its CI has Go or through the release binary and its checksum".
-This design takes the binary: the relay's CI has no Go toolchain and needs
-none. The draft does not yet fix the binaries' names or URLs, so the URL is
-a pinned value, not a pattern in code.
+The S1 design (**Releases and how they are consumed**) says the relay
+repository consumes a release with its own target files, "through the
+module if its CI has Go or through the release binary and its checksum",
+and that this wiring is M1's. As read on 2026-11-14 it adds "in the
+relay's queue"; with one queue that is an item which names this
+repository, or, until the queue can hold one, task 12 (a17). This design
+takes the binary: the relay's CI has no Go toolchain and needs none. The
+S1 design does not yet fix the binaries' names or URLs, so the URL is a
+pinned value, not a pattern in code.
 
 M1b, once `buildwarden-specs` has its first release: set the three values,
 and prove the wiring once, by hand, by running the harness from this
 repository's CI against the Go relay's published image with the main
-repository's target file for it. The S1 draft keeps that file in the main
+repository's target file for it. The S1 design keeps that file in the main
 repository, at `tools/conformance/targets/relay-oci.toml`, and this
 repository does not copy it. A separate workflow,
 `conformance-dispatch.yml`, runs on `workflow_dispatch` only and takes two
@@ -2327,9 +2343,9 @@ work before M2 depends on them.
 M2 adds the first targets that must pass (`relay-native` through the `exec`
 launcher, the OCI image through the `oci` launcher). M3 adds the unikernel,
 which needs a launcher for VM images, and host mode over `frames`. The S1
-draft (its a6) builds no VM launcher itself and leaves it to whichever item
-first has an image and a CI that boots it: the relay's M2 or M3 item, or
-seam 8's.
+design (its a6) builds no VM launcher itself and leaves it to whichever
+item first has an image and a CI that boots it: the relay's M2 or M3 item,
+or seam 8's.
 
 If S1's design changes in review (the target-file format, how releases are
 distributed, the harness's name), only `xtask conformance` and the files
@@ -2408,9 +2424,12 @@ boundary.
   accident.
 - **No image carries a network value** (BOOT-06). The stubs configure no
   network, and the build cannot compile one into the kernel.
-- **The first release ships without a TEST-08 run**, if Jeff accepts that
-  in a13. It contains no boundary code. M2's first release, and every one
-  after it, needs the suite.
+- **The first release has no security-suite run**, if Jeff confirms a24's
+  recommended option. It contains no boundary code. Under that option the
+  first release with relay behaviour, M2's, is inside the relay's
+  invariant; the suite does not exist and its item is behind the freeze,
+  so M2's design has to settle how its release gets one, and this design
+  does not promise it.
 - **The repository becomes public.** Its CI then runs code from strangers'
   pull requests. The workflows give such runs no secret and a read-only
   token, write caches only from `main`, push the builder image only from
@@ -2445,19 +2464,24 @@ runtime. The x86_64 unikernel on Firecracker is added if its trial passes
 **Tier 2 (native):** the stub unikernel's VZ form boots on the MacBook
 (`macos-vz`), recorded with its console log. It is blocking for two things
 (FLOW-09): the pull request that changes the loader's toolchain pin, and
-the `v0.0.1` tag. For every other change it is a tracked gap. Hyper-V is a
-tracked gap until M2. With no queue, the blocking boot is an attended
-session Jeff starts, and the gaps are recorded as a17 says.
+the `v0.0.1` tag, and each time it is the bytes in question that boot
+(task 7). For every other change it is a tracked gap. Hyper-V is a tracked
+gap until M2. While the queue has no step for this repository, a blocking
+boot is an attended session Jeff starts, and the gaps are recorded as a17
+says.
 
 **Done when**, for M1a: `ci-ok` and `sessions-private` are green on `main`
 with all of the above in place; the a4 and a23 trials are each recorded,
 passed, failed or unfinished; the repository is public with its checklist
-recorded; the `aarch64-vz` form has booted on VZ; `v0.0.1` is published and
-a rebuild from its commit on another machine gives the published manifest.
-For M1b: the README and `AGENTS.md` link to the Loop Contract, and the
-profile, the rules and the design template are in its form; the relay has
-completed one item from the loop repository; the conformance pin is set
-and the dispatch run against the Go relay's image has passed.
+recorded; the tagged commit's `aarch64-vz` form has booted on VZ, and the
+hashes recorded at the boot equal the published ones; `v0.0.1` is
+published and a rebuild from its commit on another machine gives the
+published manifest. For M1b: the README and `AGENTS.md` link to the Loop
+Contract, the profile, the rules and the design template are in its form,
+and the consumables are declared (LOOP-08's steps as merged); the
+conformance pin is set and the dispatch run against the Go relay's image
+has passed. A relay item completing through `wf`'s gates is P1's
+done-when, not M1's (a26).
 
 **Not validated by M1, and said so:** that the reproducibility method holds
 for a real relay with a TLS stack and an async runtime (M2 and M3 find
@@ -2469,20 +2493,34 @@ macOS binaries' reproducibility.
 No task starts before the design review has approved this design and
 recorded it under **Design review** (FLOW-19, FLOW-07; see **Blocking**).
 After that, each task is one pull request to `main` unless it says
-otherwise, on its own feature branch, merged by Jeff (FLOW-08). Tasks 1 to
-3 can then start together; the rest follow the order given.
+otherwise, on its own feature branch, merged by Jeff (FLOW-08). Task 0
+comes first. Tasks 1 to 3 can then start together; the rest follow the
+order given. Every task is worked outside the queue, in an attended
+session, until the queue can hold it (a17); from `loop-repository` on,
+each task still open is an item `wf` gates.
 
 **M1a: nothing here waits for another program item.**
 
+0. **This design reaches `main`.** `docs/design/m1-foundation.md` exists
+   only on `feat/m1-foundation`, and every other task branches from
+   `main`. Once the review's entry is recorded in it on that branch, the
+   branch's pull request is opened: this one file, nothing else. Jeff
+   first turns on "Automatically delete head branches" (a16), then
+   merges. Every later task can then read the design on `main`, and the
+   ones with a result to record (5, 6, 9) edit it in their own pull
+   request. No CI exists yet, so nothing gates this pull request but the
+   review it records. Rules: FLOW-03, FLOW-08, FLOW-16, FLOW-19.
 1. **Housekeeping** (documents and the session guard). `README.md`,
    `CONTRIBUTING.md` (set-up, the commands in this design, the pull request
    flow, and the main repository's standards by link), `SECURITY.md`,
    `CODE_OF_CONDUCT.md` per a14, the pull request template,
    `.entire/settings.json`, `tools/flow18-check.sh`, `flow18.yml`, a root
-   `.gitignore`, `docs/invariants.md` (the rules table and the two tracked
+   `.gitignore`, `docs/invariants.md` (the rules table, with the relay's
+   security-testing invariant as a24 is answered, and the two tracked
    native gaps), and, if a21 is confirmed as A, `docs/planning/` with the
    kickoff and the decisions table. Rules: FLOW-18, GLOBAL-06, TEST-03.
-   Needs a14's and a21's answers before it merges.
+   It builds on a14's, a21's and a24's answers, which the design review
+   gives before any task starts.
 2. **Workspace, lints and the first CI.** `Cargo.toml`, the three relay
    crates as stubs, `tests/lint-fixtures`, `xtask` with `check-pins`,
    `lint-sources`, `fetch`, `build` and `conformance`;
@@ -2511,51 +2549,92 @@ otherwise, on its own feature branch, merged by Jeff (FLOW-08). Tasks 1 to
    `smoke`; the kernel configurations; the manifest; `pins.toml` gains the
    builder digest and moves the kernel fork to `-bw.2`; `ci.yml` gains
    `images`, `images-rebuild`, `repro` and `smoke`; `docs/building.md`.
-   It includes the Firecracker trial (a23): the result is recorded in the
-   pull request, and the Firecracker leg is added to `smoke` only if the
-   boot passed. Rules: GLOBAL-05, BOOT-06, TEST-02, TEST-04. If a form
+   It includes the Firecracker trial (a23): the result is recorded under
+   **Rollback notes** in this design, in the same pull request, and the
+   Firecracker leg is added to `smoke` only if the boot passed. Rules: GLOBAL-05, BOOT-06, TEST-02, TEST-04. If a form
    cannot be made to reproduce, that is a return to this design (FLOW-06),
    not a form left out of `repro`.
 6. **The loader toolchain trial** (after 5; a4). Build the loader with
    stable `1.97.1` and run every smoke boot. The pin changes only if those
    pass and the VZ boot of the `aarch64-vz` form built with `1.97.1` has
-   passed on the MacBook; that boot blocks this pull request (FLOW-09). If
-   no MacBook session has run, the pull request is closed with the pin
-   unchanged. Either way the result is recorded under **Rollback notes**.
-   Rules: GLOBAL-05, FLOW-09, TEST-04.
-7. **VZ boot of the stub** (after 5; native, MacBook; an attended session
-   Jeff starts, a17). Boots `hermit-loader-aarch64-vz.Image` from task 5's
-   `dist/` with the spike's `vzrun`; the console log goes into the pull
-   request of task 5 or 6 and is named in task 9. It blocks task 6's pin
-   change and task 9's tag, and nothing else. Rules: FLOW-09, TEST-02,
-   TEST-03.
-8. **Going public** (after 1, 2 and 5 have merged). The checklist, with
+   passed on the MacBook (task 7, boot b); that boot blocks this pull
+   request (FLOW-09). If no MacBook session has run, the pull request is
+   closed with the pin unchanged. Either way the result is recorded under
+   **Rollback notes**: in this pull request if it merges, otherwise in
+   the next pull request that edits this design. Rules: GLOBAL-05,
+   FLOW-09, TEST-04.
+7. **VZ boots of the stub** (native, MacBook; attended sessions Jeff
+   starts, a17). Not a pull request. Each boot takes the `dist/` that a
+   named run of the `images` job uploaded, checks the two files against
+   that run's manifest, boots `hermit-loader-aarch64-vz.Image` with
+   `relay-hermit-aarch64` using the spike's `vzrun`, and records the
+   console log with the commit, the run and the SHA-256 of both files.
+   The MacBook builds nothing: only a linux/amd64 build is canonical.
+   There are three boots, because each commit builds different bytes for
+   this form (a13):
+   - *(a) Task 5's build*, from the `images` run on task 5's pull request
+     or on `main` after it merges. It blocks nothing, and if no session
+     has run it is skipped; boot (c) is then the first. It is worth
+     having because it is the first time the cross-built loader and the
+     `-bw.2` kernel boot as a pair, and a failure found here is a return
+     to this design before the repository goes public. Its log goes into
+     task 5's pull request, or into task 8's if task 5 has merged.
+   - *(b) Task 6's build*, from the `images` run on task 6's pull
+     request head, where the loader is built with `1.97.1`. It blocks
+     task 6's merge and nothing else. Its log goes into that pull
+     request.
+   - *(c) The release build*, from the `images` run on `main` at the
+     commit that will be tagged, which is at or after task 9's merge. It
+     blocks the `v0.0.1` tag and nothing else. Its log and the two hashes
+     go into task 9's closing pull request.
+
+   Rules: FLOW-09, TEST-02, TEST-03.
+8. **Going public** (after 0, 1, 2 and 5 have merged). The checklist, with
    the full-history scan of step 1; the redaction pull request for the
-   vznet material if a15 is confirmed as A; then Jeff's steps 10 to 14.
-   Rules: FLOW-16, FLOW-17, FLOW-18, GLOBAL-06; the umbrella's Decision 16
-   and a11.
-9. **Release workflow and the stub pre-release** (after 7 and 8).
-   `release.yml`; Jeff pushes `v0.0.1` once task 7's log exists and a13's
-   three acceptances are in the design review; a rebuild elsewhere is
-   compared with the published manifest. Rules: FLOW-08, FLOW-09,
-   GLOBAL-05, TEST-08 (waived for this release only if a13 is confirmed).
+   vznet material if a15 is confirmed as A; the branch deletion as a25 is
+   answered; then Jeff's steps 10 to 14, and the pull request that
+   removes the registry login. Rules: FLOW-16, FLOW-17, FLOW-18,
+   GLOBAL-06; the umbrella's Decision 16 and a11.
+9. **Release workflow and the stub pre-release** (after 8). Three steps.
+   First, the pull request that adds `release.yml`. Second, after it has
+   merged: boot (c) of task 7 on the commit to be tagged; then Jeff
+   pushes `v0.0.1`, with a13's three acceptances in the design review;
+   the release task compares the published hashes of the two booted
+   files with the ones recorded at the boot, and a rebuild elsewhere is
+   compared with the published manifest. Third, the pull request that
+   closes M1a, docs only: it records the **Going public** checklist, boot
+   (c) and the two comparisons, and fills **Consolidation** and the
+   **Archive summary** for M1a. Rules: FLOW-08, FLOW-09, GLOBAL-05; the
+   relay's security-testing invariant as a24 is answered.
 
 **M1b: each task names what it waits for.**
 
 10. *Waits for `loop-contract` to merge in the main repository; does not
-    wait for `loop-repository` or for M1a to finish.* The P1 draft's steps
-    1 to 4: `AGENTS.md`, and the link to the contract from it and from the
-    README; the profile; `docs/invariants.md` rewritten as rules in
-    LINT-01's format under a registered prefix; `docs/design/TEMPLATE.md`.
-    Rules: the contract's LOOP-01 and LOOP-08 as merged; FLOW-14 in the
-    main repository for the prefix registration.
-11. *Waits for the loop repository to be live and able to hold an item;
-    not for the `loop-repository` item to be done, which itself needs
-    this.* File the relay's queue item (this one) there, and the two
-    tracked native gaps on its backlog; add the loop configuration this
-    repository needs; complete the item through the loop, which gives P1
-    its relay half. Rules: the contract's rules for a queue and workers;
-    TEST-03.
+    wait for any later P1 item or for M1a to finish.* LOOP-08's steps as
+    merged, in the form **The Loop Contract adopted** gives them:
+    `AGENTS.md`, and the link to the contract from it and from the README;
+    the profile, which names this repository's rule prefix, its host
+    names and what it releases and consumes; `docs/invariants.md`
+    rewritten as rules in LINT-01's format under that prefix;
+    `docs/design/TEMPLATE.md`. Nothing is registered in the contract and
+    nothing in the main repository changes. Rules: the contract's LOOP-01
+    and LOOP-08 as merged; LINT-01.
+11. **This repository's work in the one queue.** Not part of M1's
+    done-when (a26), and not a pull request here until its last part. It
+    is listed so that what a17 defers has a place.
+    - *When `loop-parallel` has landed:* what is still open of M1 is
+      filed, at intake with Jeff, as an item that names this repository,
+      tracked and not gated. If M1 is done by then, there is nothing to
+      file.
+    - *When `loop-repository` has landed:* whatever its design asks of a
+      second repository is added here; the two tracked native gaps are
+      filed on the queue's native-gap backlog; and the relay work that is
+      next at that time (task 10 or 12 if either is still open, otherwise
+      M2's first item) is the first item `wf` gates here. Its completion
+      is the relay half of P1's done-when.
+
+    Rules: the contract's rules for an item and its repositories, as
+    merged; TEST-03.
 12. *Waits for the first release of `buildwarden-specs`.* Set
     `[conformance]`; add `conformance-dispatch.yml`; run it against the Go
     relay's image with the main repository's `relay-oci` target file;
@@ -2587,7 +2666,11 @@ path; UDP and DNS on the build link):
   design; the stub kernel's lack of a block layer does not carry over.
 - The seam 8 specification, by whichever item Jeff assigns (a20), before
   M2's release forms are consumed by anything.
-- The TEST-08 suite's first run against a relay release (a13).
+- How M2's first release meets the relay's security-testing invariant
+  (a24). M2 is wave 2, the suite does not exist, and its item is closed
+  until after the freeze, which ends no earlier than wave 4. M2's design
+  settles that with Jeff before M2 tags anything; M1 does not promise a
+  suite by then.
 - The OCI image's real contents.
 - The first conformance targets.
 - `cargo vet` (a8); third-party notices for each form, the kernel's
@@ -2648,8 +2731,9 @@ restated; the Go relay retired; then, and not before, anything raised with
   The builder's "toolchains at the default locations" rule and the path
   reasoning are rechecked at each Hermit bump.
 - **The public manifest may be read as stable.** It is version 0 and
-  marked unstable, and K1's draft already uses different names for the
-  same things (a20). Until seam 8 is written, each side can drift.
+  marked unstable. It takes K1's provisional names where the two name the
+  same thing, and still differs from K1 on what a unikernel's files are
+  (a20). Until seam 8 is written, each side can drift.
 - **The unikernel's compiler is nine months old and the lag will grow.**
   It moves only when BuildWarden replays its carried commits onto a newer
   Hermit release. The MSRV of 1.94 follows from it and can hold back a
@@ -2658,42 +2742,52 @@ restated; the Go relay retired; then, and not before, anything raised with
   optimized unikernel is still only exercised by booting it.
 - **Pushing `unsafe` out of the workspace pushes work into the forks**
   (a2), where review is harder and upstreaming is on hold.
-- **The S1 design and the Loop Contract are drafts.** M1b absorbs their
-  final shape; M1a is built not to depend on it.
+- **The S1, P1 and K1 designs are not merged, and P1's later items are
+  not designed.** M1b absorbs the final shape of the first two; M1a is
+  built not to depend on it. What this design says each later P1 item
+  brings (**The Loop Contract adopted**) is a reading, and those items'
+  designs may decide otherwise.
 - **CI time.** About twenty minutes for a code change, most of it building
   images twice. If that proves too slow, the rebuild can move to `main` and
   the weekly run, which trades merge-time certainty for speed and needs a
   decision.
 - **Hosted arm runners** may not be available to this repository (a18).
 - **One person** approves this design, merges the fork change, tags it,
-  starts the MacBook session, changes the visibility, and pushes the
-  release tag. Each is a point where M1a waits.
-- **No tool enforces the order of work** while there is no queue (a17).
-  The design review entry and the task preconditions are kept by the
-  sessions that do the work and by Jeff's merges.
+  starts the MacBook sessions, changes the visibility, and pushes the
+  release tag. Each is a point where M1a waits. The release boot adds
+  one: it can only happen after the release workflow has merged, on the
+  commit that will be tagged.
+- **No tool enforces the order of work** until `wf` can gate work in this
+  repository (a17). The design review entry and the task preconditions
+  are kept by the sessions that do the work and by Jeff's merges.
+- **Nothing but the rule keeps `main` while the repository is private.**
+  Its host offers no branch protection on the current plan, so FLOW-08
+  and FLOW-17 are held by the sessions' settings until the visibility
+  change (a16).
 
 ## Design review
 
-(None yet.)
+(None yet. The revision of 2026-11-14 was made before any review and is
+described at the end of **Prior art**; it is not a review entry.)
 
 There is no queue file, so the entry written here is the record of the
 approval and the gate for the implementation plan. An approval names
 `approved at <sha>` and, by ID, each assumption it confirms or changes. It
-gives Jeff's explicit word on a14, a15 and a21, and on the three
+gives Jeff's explicit word on a14, a15, a21, a24 and a25, and on the three
 acceptances in a13.
 
 ## Consolidation
 
-(Filled in when M1a's last pull request is opened: what landed in this
-repository and in the main repository since this design was written,
-terminology aligned with the S1, P1 and K1 designs as merged, and the
-duplication and dead-code sweep.)
+(Filled in by the pull request that closes M1a, the last step of task 9:
+what landed in this repository and in the main repository since this
+design was written, terminology aligned with the S1, P1 and K1 designs as
+merged, and the duplication and dead-code sweep.)
 
 ## Rollback notes
 
 (None yet. The results of the loader toolchain trial, a4, and of the
-Firecracker trial, a23, are recorded here.)
+Firecracker trial, a23, are recorded here, by tasks 6 and 5.)
 
 ## Archive summary
 
-(Filled in when M1a's last pull request is opened.)
+(Filled in by the pull request that closes M1a, the last step of task 9.)
