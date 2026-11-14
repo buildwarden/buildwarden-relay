@@ -544,9 +544,10 @@ Cited elsewhere in this design as D1 to D15.
    repository's does.** Its jobs: format, pins, clippy, source scan, tests
    on four hosted platforms, native builds, Hermit builds, `cargo deny`,
    the image build, an independent image rebuild, the comparison of the
-   two, smoke boots, and the conformance hook. Branch protection requires
-   two checks: `ci-ok` and the FLOW-18 guard's `sessions-private`, which is
-   a workflow of its own. Everything in M1 runs on GitHub-hosted runners
+   two, smoke boots, and the conformance hook. Branch protection, set when
+   the repository becomes public (a16), requires two checks: `ci-ok` and
+   the FLOW-18 guard's `sessions-private`, which is a workflow of its own.
+   Everything in M1 runs on GitHub-hosted runners
    except the VZ boot, which needs a native host and blocks only the two
    things the front matter names. *Rejected:* requiring each job by name:
    the required list would have to follow every path filter and matrix
@@ -577,7 +578,9 @@ Cited elsewhere in this design as D1 to D15.
     initramfs; of the OCI image, an OCI layout whose index digest is the
     image's identity. Container formats a hypervisor needs (VHDX, qcow2,
     VMDK, ISO) are derived from those and are not what the published hash
-    covers, unless M2 shows a derivation is byte-reproducible (a6).
+    covers, unless M2 shows a derivation is byte-reproducible (a6). M1
+    publishes these three forms. Whether the Linux binary inside two of
+    them is also listed as a form of its own is a27.
     *Rejected:* hashing whatever file a driver boots: `qemu-img`-style
     converters write fresh identifiers into some formats, and the hash would
     then identify a conversion, not a relay.
@@ -613,17 +616,23 @@ Cited elsewhere in this design as D1 to D15.
     for S1: neither changes what is in this repository's history.
 
 15. **M1 runs in two parts.** M1a is everything that depends on nothing
-    outside this repository and the forks. M1b is adoption: the Loop
-    Contract, the loop repository, and the conformance pin. M1 is done when
-    both are. M1a waits for no other program item, but it does wait for
-    this design's review: its tasks start once the design review has
-    approved the design (FLOW-19) and then merge as they are ready. M1b's
-    tasks are listed with what each waits for (**The Loop Contract
+    outside this repository and the forks. M1b is what waits for another
+    item: adoption in the Loop Contract's form, which waits for
+    `loop-contract` to merge, and the conformance pin, which waits for
+    S1's first release. M1 is done when both are (a26). This repository
+    gets no queue in either part: its work becomes items in the one queue
+    when P1's later items let the queue hold them, and that is P1's work,
+    not M1's (a17, a26). M1a waits for no other program item, but it does
+    wait for this design's review: its tasks start once the design review
+    has approved the design (FLOW-19) and then merge as they are ready.
+    M1b's tasks are listed with what each waits for (**The Loop Contract
     adopted**). That M1a may run before S1 lands is a reading of the
     umbrella's order, and is a19. *Rejected:* one part that waits for P1
     and S1: the image tooling, the fork commit and the public repository
     would be held behind items none of them depends on. a19 holds the
-    alternative in between.
+    alternative in between. *Rejected:* keeping M1 open until a relay item
+    has completed through `wf`'s gates, as this design had it before one
+    queue: M1 would wait for most of P1 (a26).
 
 ## Questions
 
@@ -636,14 +645,17 @@ approved this design. FLOW-07 requires every assumption below to be
 confirmed, and FLOW-03 the review to be recorded as approved, before
 planning starts; several of the assumptions change what the first tasks
 build (a1 the crate name, a3 the toolchains, a9 the allowlist, a11 the
-guard, a14 the documents). In the main repository the queue enforces that
-order. This design has no queue file (a17), so the entry under **Design
-review** (`approved at <sha>`) is the only record of the approval, and it
-is the gate: no M1a branch is opened before it exists.
+guard, a14 the documents). For an item the queue holds, `wf` enforces that
+order. This design has no queue file, because the queue cannot hold work in
+this repository yet (a17), so the entry under **Design review** (`approved
+at <sha>`) is the only record of the approval, and it is the gate: no M1a
+branch is opened before it exists.
 
 Two confirmations are Jeff's alone, a15 and a14, and one more needs his
-ruling on content, a21. They are written as assumptions so they are decided
-in the design review; the visibility change itself is his act in any case
+ruling on content, a21. Two more ask how the plan stands with a MUST rule
+that has no exception route, a24 (TEST-08) and a25 (FLOW-16), and only he
+can answer those. They are written as assumptions so they are decided in
+the design review; the visibility change itself is his act in any case
 (a11 of the umbrella).
 
 ### Assumed
@@ -743,7 +755,10 @@ review (FLOW-19).
   Options: (A) as stated; (B) nothing until the Loop Contract says what a
   component repository must carry. *Proceeding with A.* The check matters
   most at the moment the repository becomes public. On 2026-11-13 the
-  remote carries no `entire/` ref.
+  remote carries no `entire/` ref. The contract, as the `loop-contract`
+  design proposes it, asks the same of a component (LOOP-08, step 6), and
+  FLOW-18 is one of the four rules that bind a worker in a repository that
+  has not adopted (its a17).
 - **a12. Code scanning is GitHub's default CodeQL setup, turned on when the
   repository is public, for Rust and for the workflows.** This session
   could not verify that default setup analyses Rust, nor how the main
@@ -760,22 +775,29 @@ review (FLOW-19).
   relay. *Proceeding with A.* The release path and the published hash are
   exercised before any driver depends on them. Confirming A accepts three
   things by name:
-  - *No TEST-08 run.* TEST-08 requires the security suite on a release that
-    includes changes that trip GLOBAL-06, this design declares the
-    env-relay boundary, and FLOW-20 relaxes nothing here. No suite exists
-    (the main repository's `security-suite` item is closed for re-intake).
-    `v0.0.1` would ship without one, on the grounds that it contains no
-    boundary code: the binaries print one line, and what M1 adds are
-    guards, which the lint fixtures and the `repro` job test. That is a
-    waiver of a MUST rule for one release, and it is Jeff's to give. The
-    first release with relay behaviour, M2's, may not ship without the
-    suite.
+  - *`v0.0.1` has no security-suite run.* TEST-08 requires the suite on a
+    release that includes changes that trip GLOBAL-06, this design
+    declares the env-relay boundary, and no suite exists (the main
+    repository's `security-suite` item is closed for re-intake). `v0.0.1`
+    would ship without a run, on the grounds that it contains no boundary
+    code: the binaries print one line, and what M1 adds are guards, which
+    the lint fixtures and the `repro` job test. No rule provides a waiver
+    of a MUST rule for one release, so this is not asked as one. It is
+    asked as a24: what the relay's own invariant on security testing
+    binds, which this design may state for this repository and Jeff
+    approves by name.
   - *The manifest format is published before seam 8 is written* (a20).
-  - *The `aarch64-vz` form has booted on VZ before the tag is pushed.*
-    M0 built that loader on the Mac. M1 cross-builds it in the Linux
-    builder and pairs it with an application linked against the `-bw.2`
-    kernel, and nothing has booted that pair. The boot is a blocking
-    native validation for the release (front matter).
+  - *The bytes `v0.0.1` publishes for the `aarch64-vz` form have booted
+    on VZ before the tag is pushed.* M0 built that loader on the Mac. M1
+    cross-builds it in the Linux builder and pairs it with an application
+    linked against the `-bw.2` kernel, and nothing has booted that pair.
+    The build time is in the image: `SOURCE_DATE_EPOCH` is the commit
+    time, and `built` writes it into the kernel and the loader. So every
+    commit builds different bytes for this form, and a boot of an earlier
+    commit's build is not a boot of what the tag publishes. The boot is
+    therefore of the `images` job's output for the commit that will be
+    tagged, identified by the SHA-256 of the two files booted (task 7).
+    It is a blocking native validation for the release (front matter).
 - **a14. The repository's public documents mirror the main repository's.**
   `NOTICE` stays as it is: it is word for word the main repository's.
   `README.md` and `CONTRIBUTING.md` are rewritten for this repository.
@@ -825,66 +847,121 @@ review (FLOW-19).
   `spike/vznet/`, after which Jeff deletes the branch; (B) accept both as
   they are, and merge the branch or leave it; (C) rewrite history.
   *Proceeding with A.* Three things about A are Jeff's to accept by name.
-  It deletes a branch whose commits are not contained in trunk, which
-  FLOW-16 forbids; it is an exception only he can make, and no agent
-  deletes the branch. The umbrella cites the report "on its branch
-  `spike/vz-net-entitlements`"; after A the citation resolves on `main` at
-  the same path, and the umbrella's wording is corrected in the main
-  repository's follow-up (step 16). And a deleted branch's commits can stay
+  It deletes a branch whose commits are not contained in trunk. FLOW-16
+  says a branch is deleted only after it is shown to be contained in
+  trunk, and no rule provides an exception to it; how the deletion stands
+  with that rule is a25, and no agent deletes the branch. The umbrella
+  cites the report "on its branch `spike/vz-net-entitlements`"; after A
+  the citation resolves on `main` at the same path, and the umbrella's
+  wording is corrected by the follow-up a28 describes. And a deleted branch's commits can stay
   retrievable from the host by commit ID for some time (general knowledge
   of GitHub, not checked here), so the checklist confirms they are gone
   before the visibility change (step 4). C needs a force-push to `main`,
   which no agent does (FLOW-17), and buys little for a first name that is
   already public as the maintainer's. The branch's host details are a
   different kind of thing, and only Jeff can say they may be published.
-- **a16. Order around the visibility change.** Options: (A) M1a's pull
-  requests merge while the repository is private; Jeff answers a14, a15
-  and a21; the checklist under **Going public** is run and recorded; Jeff,
-  or an attended session on his word, changes the visibility, sets branch
-  protection and turns on code scanning in the same sitting; then
-  `v0.0.1`; (B) change the visibility first and build M1a in public, which
-  shows a visitor a template README and a spike; (C) hold the change until
-  the Loop Contract or S1 has landed, which changes nothing about what is
-  in this repository's history. *Proceeding with A* (D14). Whether the
-  organization's plan allows branch protection on a private repository was
-  not determined; if it does, protection is set before the change. Nor was
-  it determined what hosted runner time, and which arm runners, a private
-  repository in this organization gets. If either is a constraint, the
-  aarch64 legs of `test` and `smoke` are switched on by the first pull
+- **a16. Order around the visibility change.** Options: (A) Jeff answers
+  a14, a15, a21, a24 and a25 in the design review, before any task; task 0
+  and tasks 1 to 5 merge while the repository is private, and task 6 too
+  if its boot has run; the checklist under **Going public** is run and
+  recorded; Jeff, or an attended session on his word, changes the
+  visibility, protects `main` and turns on code scanning in the same
+  sitting; task 9's release workflow merges in public; then the release
+  boot and `v0.0.1`; (B) change the visibility first and build M1a in
+  public, which shows a visitor a template README and a spike; (C) hold
+  the change until the Loop Contract or S1 has landed, which changes
+  nothing about what is in this repository's history. *Proceeding with A*
+  (D14). Two settings, as read with `gh api` on 2026-11-14:
+  - *Trunk protection cannot be set before the change.* The host answers
+    that protecting a branch of this repository needs a paid plan or a
+    public repository. The contract asks a component to protect its trunk
+    where its host offers that, and lets this repository adopt while
+    private (`loop-contract`'s a21). So `main` is protected in the sitting
+    that changes the visibility, and until then FLOW-08 is held here by
+    the rule and by the sessions' settings, with no repository setting
+    behind it. (The main repository's `main` has no protection today
+    either; Jeff protects it before `loop-contract`'s pull request
+    merges.)
+  - *Head branches are kept on merge.* Deleting them is a setting the host
+    offers a private repository. Jeff turns it on before task 0's pull
+    request merges, so that FLOW-16's cleanup needs no hand deletion while
+    M1a's pull requests merge.
+
+  It was not determined what hosted runner time, and which arm runners, a
+  private repository in this organization gets. If that is a constraint,
+  the aarch64 legs of `test` and `smoke` are switched on by the first pull
   request after the change, and that is recorded with the checklist.
-- **a17. Until the loop repository exists, M1a has no queue item. This
-  departs from the umbrella.** The umbrella says "The relay's milestones
-  run in the relay repository's queue". There is no such queue, and `wf`,
-  which reads one, works in the main repository only until P1 makes it
-  work across repositories. Options: (A) no queue until the loop
-  repository can hold the relay's: M1a is done in attended or directly
-  dispatched sessions, on feature branches of this repository, through
-  pull requests Jeff merges (FLOW-08, FLOW-16, FLOW-17), and the relay's
-  first queue item is filed in M1b; (B) the umbrella's reading: a queue in
-  this repository now, a `workflow` branch with one hand-kept file in the
-  main repository's format, moved by P1; (C) an item for M1 in the main
-  repository's queue, which the umbrella's sentence rules out.
-  *Proceeding with A.* This design was itself written that way, dispatched
-  directly with no queue file; no record of a decision by Jeff on the
-  point was found, so it is asked here. What A costs, and where each
-  thing a queue would carry goes instead:
+- **a17. Until the one queue can hold work in this repository, M1a is
+  worked outside it.** The umbrella says "The relay's milestones run in
+  the relay repository's queue". Jeff's direction of 2026-11-14 replaces
+  that: there is one queue, on the main repository's `workflow` branch,
+  and this repository never gets one of its own (`loop-contract`'s a18).
+  An item in that queue may already work in a repository that has not
+  adopted the contract (its a17), as `seam-specs` does in the specs
+  repository. But that item's design, branch and gates are in the main
+  repository. M1's design is here, each of its tasks is a pull request
+  here, and `wf` looks for a design and a branch in the main repository
+  only. The queue records the repositories an item names from
+  `loop-parallel`, and `wf` runs its gates, branches and pull requests in
+  a second repository from `loop-repository`. Options: (A) the change
+  proposal's answer (its question 10, recommended option), which is part
+  of the direction Jeff took: M1a is worked by hand after this design's
+  review, in attended sessions, on feature branches of this repository,
+  through pull requests Jeff merges. The sessions are bound here by
+  FLOW-08, FLOW-16, FLOW-17 and FLOW-18, the four rules `loop-contract`'s
+  a17 names for a repository that has not adopted, and by the invariants
+  **Rules mirrored** lists. Once `loop-parallel` lands, what is still
+  open of M1 is recorded in the one queue as an item that names this
+  repository, tracked and not gated. Once `loop-repository` lands, each
+  task still open, and every later milestone's work, is an item `wf`
+  gates here; (B) hold M1a until `loop-parallel` lands, so that none of
+  it is outside the queue's record; (C) recast M1 as one item with one
+  pull request, in the main repository's pattern, once the queue can hold
+  it; (D) an item for M1 in the one queue now, as `seam-specs` has: this
+  design and its reviews would move to the main repository, and `wf`'s
+  gates would still see none of the pull requests here. *Proceeding with
+  A; confirm it for this design.* This design was itself written outside
+  the queue: the `workflow` branch's digest for 2026-11-12 records it as
+  drafted "Outside the queue, on Jeff's word", with "No relay queue item
+  and no PR". That word covers the drafting. Whether M1a's implementation
+  is worked the same way is what this question asks. What A costs, and
+  where each thing a queue would carry goes instead:
   - *Program item.* FLOW-20 defines one as a queue item. Under A this
-    design is a program item's design with no item, and the freeze and its
-    exemptions are applied to it by Jeff's dispatch, not by intake.
+    design is a program item's design with no item until `loop-parallel`
+    lets it be recorded, and the freeze and its exemptions are applied to
+    it by Jeff's dispatch, not by intake.
   - *The Plan gate.* No tool checks that the review came before the work.
     The **Design review** entry is the gate (**Blocking**, above).
-  - *Native validation.* The blocking VZ boot is an attended session on
-    the MacBook that Jeff starts; the main repository's native sessions
-    drain the main repository's queue and do not know this one. The
-    release task names it as a precondition, so it cannot be skipped
-    unnoticed.
+  - *Native validation.* The blocking VZ boots are attended sessions on
+    the MacBook that Jeff starts: a native session takes its steps from
+    the queue, and the queue has no step for this repository. Once
+    `loop-native-lead` lands, a native machine may lead an item from its
+    first step, and the MacBook could lead work of this kind. For work in
+    this repository that also needs `loop-repository`, which gives the
+    native machines a checkout of it and its toolchain; the change
+    proposal has a led item in another repository attended only until
+    then. The release task names the boot as a precondition, so it
+    cannot be skipped unnoticed.
   - *Tracked gaps.* TEST-03 and FLOW-09 put a gap in `tier2_gaps` and on
-    the workflow branch's native-gap backlog. Under A the two gaps are in
-    this design's front matter and in `docs/invariants.md`, and M1b's
-    queue task files them on the loop repository's backlog.
+    the `workflow` branch's native-gap backlog. Under A the two gaps are
+    in this design's front matter and in `docs/invariants.md`, and they
+    are filed on that backlog once a native session can work in this
+    repository (task 11).
+  - *What a private repository's work shows in the public queue.* The
+    queue, its digest and its reports are public, and this repository is
+    private until **Going public**. The `loop-contract` design leaves the
+    rule to `loop-repository`, together with this question. Proceeding
+    with: before the visibility change, nothing of this repository's
+    content (file text, logs, scan results) is written to the queue, the
+    digest or a report. An entry gives the item's name, its state, pull
+    request numbers and commit IDs, which is what the digest of
+    2026-11-12 already says of this design. After the change, relay work
+    is written up as any other.
 
-  Under B all four have their usual place, at the price of a queue kept by
-  hand in a format P1 may change.
+  Under B nothing in this repository starts before `loop-parallel`, which
+  is not yet filed. Under C the nine pull requests of M1a become one,
+  which gives up merging the housekeeping, the workspace and the fork
+  commit as each is ready.
 - **a18. Hosted-runner assumptions.** Proceeding on four, of which only
   the first has evidence in the sources:
   - GitHub's hosted x86_64 Linux runners offer `/dev/kvm` once a udev rule
@@ -920,29 +997,60 @@ review (FLOW-19).
   gives for the order does not reach them. The sentence is Jeff's, so the
   reading is his to confirm.
 - **a20. `v0.0.1` publishes a release manifest before seam 8 has a
-  specification.** The manifest (`buildwarden-relay-manifest/0`: form
-  names, file roles, the per-form digest rule, a `requires` list), the
-  release's file names and the OCI image name are seam 8 material, and a
-  public release makes them something a reader can depend on. The umbrella
-  gives seam 8 a specification and a suite, says a phase touching a seam
-  changes the specification first, and assigns seam 8 to no phase. The K1
-  draft raises the same gap (its a11) and defines provisional names of its
-  own that already differ from this manifest's (`oci-image` where this has
-  `oci`; a unikernel as one image with a `kernel` role where this has a
-  loader and an application). Options: (A) M1 publishes the manifest as
+  specification, and names its forms as K1's redraft does where the two
+  name the same thing.** The manifest (`buildwarden-relay-manifest/0`:
+  form names, file roles, the per-form digest rule, a `requires` list),
+  the release's file names and the OCI image name are seam 8 material, and
+  a public release makes them something a reader can depend on. The
+  umbrella gives seam 8 a specification and a suite, says a phase touching
+  a seam changes the specification first, and assigns seam 8 to no phase.
+  The K1 redraft raises the same gap (its a11) and defines provisional
+  names of its own for its relay-source library. Two things are asked.
+
+  *Whether M1 publishes the manifest.* Options: (A) M1 publishes it as
   version 0, marked unstable in the file and in the release notes; no
-  consumer may depend on it; and a named item writes seam 8 before K1's
-  pinned source or any M6 item reads a manifest, at which point this
-  format is replaced, not grandfathered; (B) a seam 8 stub lands in
-  `buildwarden-specs` first and the manifest follows it, which makes
-  `v0.0.1` wait for S1's repository; (C) `v0.0.1` ships `SHA256SUMS` only
-  and no manifest. *Proceeding with A.* Which item writes seam 8 is not
-  this design's to assign; the umbrella leaves it open, and the K1 draft
-  recommends an S-track item of its own. It needs an owner before M2's
-  design, which gives the appliance its real forms.
+  consumer may depend on it; and a named item writes seam 8 before any
+  M6 item, or a relay source that pins a release by hash, reads a
+  manifest, at which point this format is replaced, not grandfathered
+  (K1's redraft builds no such source and says it waits for seam 8);
+  (B) a seam 8 stub lands in `buildwarden-specs` first and the manifest
+  follows it, which makes `v0.0.1` wait for S1's repository;
+  (C) `v0.0.1` ships `SHA256SUMS` only and no manifest. *Proceeding with
+  A.* Which item writes seam 8 is not this design's to assign; the
+  umbrella leaves it open, and the K1 redraft recommends an S-track item
+  of its own (its a11, option a). It needs an owner before M2's design,
+  which gives the appliance its real forms.
+
+  *Which names version 0 uses.* Both sets are provisional and neither
+  design is reviewed. As drafted, this manifest said `oci` where K1 says
+  `oci-image`. Options: (A) this manifest uses K1's provisional names
+  wherever both name the same thing: the forms `unikernel`, `appliance`,
+  `oci-image` and `host-binary`, and the roles `kernel` and `initramfs`
+  for the appliance's two files and `binary` for a host binary; it keeps
+  roles of its own, `loader` and `application`, for the unikernel, which
+  K1 only reserves a name for; (B) this manifest keeps the names as
+  drafted and seam 8's writer reconciles the two; (C) K1 takes this
+  manifest's names, which is K1's review to decide, not this one's.
+  *Proceeding with A*, and the forms table and the manifest below are
+  written that way. Three differences remain under A, and they are for
+  whoever writes seam 8, not settled here:
+  - K1 describes a unikernel as "a single bootable unikernel image" with
+    the role `kernel`. M0 found that a hypervisor boots it as a pair, the
+    loader in the kernel's place and the application as the initial
+    ramdisk, and this manifest lists a loader per boot protocol plus the
+    application.
+  - K1's `Relay` type holds one file per role. The x86_64 unikernel here
+    has two files with the role `loader`, told apart by `boot`.
+  - K1's roles `disk` (an appliance as one boot disk) and `binary` inside
+    an appliance (a relay appended to the initramfs per build, as the Go
+    relay is) have no counterpart here: the disk form is M2's (a6), and
+    this appliance carries its relay inside the initramfs, which K1's
+    text already allows for.
 - **a21. The kickoff and the decisions table: where they go.** The
-  umbrella says P1 and M1 give the planning documents homes. P1's draft
-  homes the Loop Contract. Nothing homes the other two, and this design
+  umbrella says P1 and M1 give the planning documents homes. P1 homes the
+  Loop Contract: in the main repository's `docs/development/` first, and
+  in the loop repository when P1's last item moves it. Nothing homes the
+  other two, and this design
   cites the kickoff as authority throughout. They are Jeff's documents,
   parts of them are superseded by the umbrella (**Conflicts between the
   sources**), and this repository becomes public. Options: (A) both land
@@ -987,6 +1095,122 @@ review (FLOW-19).
   M1 at all. *Proceeding with A.* QEMU with the multiboot loader is the
   x86_64 unikernel's required smoke boot either way; upstream boots an
   application with `acpi` and `pci` there.
+- **a24. What the relay's invariant on security testing binds, starting
+  with `v0.0.1`.** TEST-08 (MUST) requires the security suite on a
+  release that includes changes that trip GLOBAL-06. This design reads
+  every change to the relay, and to what guards or builds it, as tripping
+  GLOBAL-06 (**Rules mirrored**), so TEST-08 as written binds every relay
+  release, `v0.0.1` included. Three facts stand against that. No suite
+  exists: the main repository's `security-suite` item was closed for
+  re-intake after the freeze (the umbrella's Decision 14), the freeze
+  ends no earlier than wave 4 (its a4), and FLOW-20 exempts only fixes
+  for regressions and for security problems. The umbrella's own list of
+  what the suite should exercise names S2, S3 and M6, and no relay
+  release before M6. And no rule gives a way to waive a MUST rule: the
+  main repository's `docs/development/` has no waiver or exception route,
+  FLOW-14 knows only rule changes approved by name, and FLOW-20 says
+  "Nothing else is relaxed". What this design can do is say which
+  invariants bind work in this repository and how (`loop-contract`'s
+  a17), and state the relay's own (its a10 lets a feature's design change
+  the invariants of the component it works in). TEST-08 is the main
+  repository's invariant, not a loop rule, and nothing in the main
+  repository changes under any option but D. Options: (A) the relay's
+  invariant, written in `docs/invariants.md` in task 1 and as a rule
+  under the relay's prefix in task 10: the security suite runs on a
+  relay release that contains code on the env-relay boundary. A stub
+  release, whose binaries print one line, is outside it, so `v0.0.1`
+  ships without a run. The first release with relay behaviour is M2's
+  and is inside it. This design cannot promise a suite by then: M2 is
+  wave 2 and the suite's item is behind the freeze. So M2's design
+  settles with Jeff, before M2 tags anything, whether the suite's item
+  comes back early (whether it may is FLOW-20's judgment at intake, and
+  his) or M2 ends without a tagged release; (B) the same invariant,
+  binding from the first release a driver may adopt, which is M6 and
+  matches the umbrella's list; every release before that is a
+  pre-release whose notes and manifest say it has had no security-suite
+  run; (C) TEST-08 as written, here too: no tag, `v0.0.1` included,
+  until a suite exists, which is a13's option B and leaves the release
+  path unexercised until after the freeze; (D) an item in the main
+  repository changes TEST-08's wording to say when a release is outside
+  it, and `v0.0.1` waits for that item. *Proceeding with A; this one
+  needs Jeff's explicit word*, because A narrows, for this repository,
+  what a MUST rule of the main repository would ask of it.
+- **a25. Deleting the unmerged spike branch, and FLOW-16.** a15's
+  recommended option ends with `spike/vz-net-entitlements` deleted from
+  the remote. Its two commits are not in trunk, and they are deleted for
+  that reason: they hold host details that the redacted copy on `main`
+  leaves out. FLOW-16 (MUST) says "a branch is deleted only after it is
+  shown to be contained in trunk", and gives the reason: "Deleting a
+  branch loses any commit not on trunk". No rule provides an exception
+  (a24 gives the sources), and FLOW-16 is a loop rule, which only a
+  process item changes; this design may not declare a change to it
+  (`loop-contract`'s a10). Options: (A) a reading for Jeff to confirm by
+  name: FLOW-16 governs the loop's cleanup of a merged feature's branch.
+  Removing unpublished material from a repository before it is made
+  public is the owner's act, like the visibility change itself (the
+  umbrella's a11), and is not a cleanup the rule covers. Jeff first
+  keeps the two commits somewhere private (a `git bundle` of the branch,
+  or a push of it to a private repository), so that what the rule guards
+  against, a lost commit, does not happen. Then he deletes the branch.
+  No agent deletes it or prepares the deletion beyond naming the
+  command; (B) no deletion: the branch is published as it is (a15's
+  option B), or the visibility change waits; (C) a process item amends
+  FLOW-16 with a clause for material removed before a repository is made
+  public, and the deletion, and so the visibility change, waits for it.
+  *Proceeding with A; this one needs Jeff's explicit word.* If he does
+  not confirm the reading, C is the route the rules give, and a16's
+  order gains that item before step 4 of **Going public**.
+- **a26. M1 is done at adoption, not at the relay's first gated item.**
+  The umbrella's M1 includes "the Loop Contract adopted". As drafted,
+  this design also put into M1b "the relay's first item taken from the
+  loop repository", which was half of P1's done-when. With one queue,
+  adoption is LOOP-08's six steps as the `loop-contract` design proposes
+  them, and a repository's work being in the queue is not one of them:
+  that design lists it "beyond the six steps", as what P1's later items
+  owe. Options: (A) M1 is done when M1a is done, the six steps are done
+  (task 10) and the conformance pin is set (task 12). The first relay
+  item that `wf` gates is P1's to complete, with whichever relay work is
+  next when `loop-repository` lands (task 11), and M1 does not wait for
+  it; (B) as drafted: M1 stays open until a relay item has completed
+  through `wf`'s gates. M1 then waits for `loop-parallel`,
+  `loop-native-lead` and `loop-repository`, which is most of P1.
+  *Proceeding with A.* When M2 may start is the umbrella's wave-1 gate,
+  not this design's, and what that gate is with one queue is
+  `loop-contract`'s to settle.
+- **a27. Whether `v0.0.1` lists a `host-binary` form.** As drafted, the
+  forms table had a fourth row, `host-binary`: `relay-linux-x86_64` and
+  `relay-linux-aarch64` in `dist/`, the same binary the appliance and the
+  OCI image contain, which **Publication** would then release with "every
+  file of every form". D11, a6 and **What M1 delivers** name three forms,
+  host mode is M3's (the umbrella's Decision 11), and no driver runs a
+  Linux host-mode relay today. Options: (A) three forms in M1. The Linux
+  binary is in `dist/` only inside the initramfs and the OCI layer, both
+  uncompressed, so `repro` still compares its bytes. The `host-binary`
+  form first appears in M3, with host mode, for Linux and macOS together;
+  (B) four forms: `v0.0.1` also publishes the two Linux binaries as
+  `host-binary`, and D11, a6, a13 and **What M1 delivers** say so. It
+  exercises the release path for a fourth form early, and publishes under
+  the name of host mode a binary that has none. *Proceeding with A*, and
+  the forms table below has three rows.
+- **a28. The two follow-ups in the main repository after going public.**
+  Step 16 of **Going public** needs two edits there: the book and the
+  README link to this repository; and, if a15 is confirmed as A, the
+  umbrella's pointer to the VZ networking report is corrected, since it
+  names a branch that will no longer exist. The umbrella is an archived
+  design whose sentences change only with Jeff's approval by name, and a
+  new item that is not a program item is filed on hold while the freeze
+  stands (FLOW-20). Options: (A) one small item in the queue, filed at
+  intake once this repository is public. Its design lists the umbrella
+  in `related`, which makes it a program item; whether it is one is
+  intake's and the design review's judgment (FLOW-20). It carries the
+  links and the corrected pointer, the latter as an amendment Jeff
+  approves by name; (B) the two edits ride in the pull request of a
+  program item that is open then and already edits the book or amends
+  the umbrella (`seam-specs`, `loop-contract` or `driver-contract`), on
+  Jeff's word in that item's review; (C) they wait for the end of the
+  freeze, and the umbrella's pointer is stale until then. *Proceeding
+  with A.* This design files nothing in the queue itself; it names the
+  need, and step 16 is done when the item exists.
 
 ## Design
 
