@@ -450,7 +450,11 @@ and revised by 2026-11-13 (`13ce286`). This revision was made on
    on 2026-11-14, and both repositories' settings as read that day.
 
 Questions a1 to a23 keep their IDs. a13, a15, a16, a17, a20 and a21 are
-reworded. a24 to a28 are new. None is retired.
+reworded, and a11 gains a sentence. a24 to a28 are new. None is retired.
+The table at the head of **Assumed** lists them. Two recommendations
+changed with the direction: a17's (no queue for this repository, where it
+had "the relay's first queue item is filed in M1b") and, through a26,
+what M1 is done at. One changed with a concern: a16's order.
 
 ## Decisions
 
@@ -664,6 +668,16 @@ the design review; the visibility change itself is his act in any case
 
 "Proceeding with X; confirm." Each is confirmed or changed in the design
 review (FLOW-19).
+
+Against the text at `13ce286`, after the revision of 2026-11-14:
+
+| | Questions |
+|---|---|
+| Unchanged | a1 to a10, a12, a14, a18, a19, a22, a23 |
+| A sentence added | a11 (the contract as proposed asks the same) |
+| Reworded | a13 (its first and third acceptances), a15 (the branch deletion and the umbrella's pointer now point to a25 and a28), a16 (the order, and the two settings as read), a17 (one queue: rewritten), a20 (K1's redraft; a second part on names), a21 (one clause on the Loop Contract's home) |
+| New | a24 (the relay's security-testing invariant, in place of a waiver of TEST-08), a25 (the unmerged spike branch and FLOW-16), a26 (M1 done at adoption), a27 (no `host-binary` form in M1), a28 (the two follow-ups in the main repository) |
+| Retired | none |
 
 - **a1. The second binary crate is `relay-native`, and its binary is
   `relay`.** Options: (A) `relay-native`, one crate for the appliance, the
