@@ -1024,9 +1024,10 @@ review (FLOW-19).
   *Which names version 0 uses.* Both sets are provisional and neither
   design is reviewed. As drafted, this manifest said `oci` where K1 says
   `oci-image`. Options: (A) this manifest uses K1's provisional names
-  wherever both name the same thing: the forms `unikernel`, `appliance`,
-  `oci-image` and `host-binary`, and the roles `kernel` and `initramfs`
-  for the appliance's two files and `binary` for a host binary; it keeps
+  wherever both name the same thing: the forms `unikernel`, `appliance`
+  and `oci-image`, and `host-binary` when that form appears (a27); the
+  roles `kernel` and `initramfs` for the appliance's two files, and
+  `binary` for a host binary; it keeps
   roles of its own, `loader` and `application`, for the unikernel, which
   K1 only reserves a name for; (B) this manifest keeps the names as
   drafted and seam 8's writer reconciles the two; (C) K1 takes this
@@ -1242,11 +1243,14 @@ buildwarden-relay/
   conformance/
     targets/                 target files for S1's harness (empty in M1)
   tests/lint-fixtures/       a workspace member whose cases must each fail a lint
-  tools/flow18-check.sh      the FLOW-18 guard, until the loop repository supplies it
+  tools/flow18-check.sh      the FLOW-18 guard: a copy of the main repository's, until a
+                             later P1 item says how a second repository gets the loop's checks
   docs/
     design/m1-foundation.md  this file
     design/TEMPLATE.md       this repository's design template (M1b)
-    invariants.md            the relay's invariants and the check that enforces each
+    invariants.md            the relay's invariants and the check that enforces each; rules
+                             in LINT-01's format from M1b
+    (the profile)            M1b; task 10 names the file
     building.md              how to build, rebuild and verify a hash
     planning/                the kickoff and the decisions table, if a21 is confirmed as A
   spike/                     M0, unchanged (D13); spike/vznet/ is added if a15 is confirmed as A
@@ -1576,14 +1580,21 @@ included, are outside what this file can allow or refuse (D5, a22).
 
 ### Rules mirrored
 
-This repository has no rule files. Until the Loop Contract and the move of
-RELAY-01 to RELAY-08 (M6 in the umbrella) give the relay its own, the main
-repository's rules apply by ID, and this table says how each is met here.
-`docs/invariants.md` holds the same table with job names, and the two
-tracked native gaps, so the contract's "declare the component's safety
-invariants" has something to point at. In M1a it is a plain table. The P1
-draft asks for a component's invariants as rules in LINT-01's format under
-a registered prefix; that form is M1b's (**The Loop Contract adopted**).
+This repository has no rule files. Until it adopts the Loop Contract
+(task 10) and the umbrella's M6 moves RELAY-01 to RELAY-08, the main
+repository's rules apply by ID, and this table says which bind work here
+and how each is met. That is what the `loop-contract` design proposes for
+an item that works in a repository that has not adopted: the worker is
+bound by FLOW-08, FLOW-16, FLOW-17 and FLOW-18, and the item's design says
+which invariants apply, by rule ID (its a17). `docs/invariants.md` holds
+the same table with job names, and the two tracked native gaps, so the
+contract's "declare the component's safety invariants" has something to
+point at. In M1a it is a plain table. The contract asks for a component's
+invariants as rules in LINT-01's format, under a prefix the component
+names in its own profile (`loop-contract`'s a16); that form is M1b's
+(**The Loop Contract adopted**). `rule_changes` is empty: nothing here
+changes a rule of the main repository, and a24 and a25 are where the plan
+meets one it cannot follow as written.
 
 | Rule | Here | Enforced in M1 by |
 |---|---|---|
@@ -1606,14 +1617,16 @@ a registered prefix; that form is M1b's (**The Loop Contract adopted**).
 | RELAY-08 configured by the claim | M2's code. The stub reads no flag and no variable | review |
 | BOOT-06 images carry no per-build network value | The umbrella binds the relay's release forms and images to it. M1's images carry none: the stubs configure no network, and the Hermit kernel's compile-time `HERMIT_IP`, `HERMIT_GATEWAY`, `HERMIT_MASK` and `HERMIT_DNS*` defaults cannot be set, because the builder's environment is built from nothing | the scrubbed build environment; `xtask` refuses to build images with any `HERMIT_*` variable set other than `HERMIT_MANIFEST_DIR` |
 | TEST-01, TEST-02 | Tier 0: `cargo test --workspace`. Tier 1: smoke boots under QEMU and a container runtime (and Firecracker, if the a23 trial passes), and later the conformance suites, all on hosted runners. Tier 2: native hosts (VZ, Hyper-V) | `test`, `smoke`, `conformance` jobs |
-| TEST-03 | Gaps are in this design's front matter and in `docs/invariants.md`; with no queue they are not yet on a native-gap backlog (a17) | n/a |
+| TEST-03 | Gaps are in this design's front matter and in `docs/invariants.md`; they are not on the queue's native-gap backlog until a native session can work in this repository (a17, task 11) | n/a |
 | TEST-04 | A smoke boot is not retried | `smoke` job |
 | TEST-05 | The suites are S1's | `conformance` job |
+| TEST-06 coverage | As written: cover behaviour, and the guards heavily; no percentage target. M1's code is the guards, which the lint fixtures and `xtask`'s tests cover case by case | review |
 | TEST-07 | Jobs run in parallel; the builder image carries the toolchains | CI |
-| TEST-08 | No suite exists yet (the main repository's `security-suite` item is closed for re-intake). `v0.0.1` ships without a run only if Jeff accepts that in a13; M2's first release may not. The Security note says what the suite should exercise | the design review, for `v0.0.1` |
-| FLOW-07, FLOW-19 | Every assumption confirmed and the review approved before any task starts | the **Design review** entry; there is no queue to enforce it (a17) |
-| FLOW-09 | The VZ boot blocks the loader pin change and the release; otherwise tracked | task 6's and task 9's preconditions |
-| FLOW-08, FLOW-16, FLOW-17 | Jeff merges; agents push feature branches only, never `main`, never by force, and delete no remote branch | branch protection once public |
+| TEST-08 | Not mirrored as written; a24 asks what binds here. Under its recommended option the relay's invariant is that the suite runs on a release with code on the env-relay boundary, so not on the stub `v0.0.1`. No suite exists yet (the main repository's `security-suite` item is closed for re-intake), and this design does not promise one by M2. The Security note says what the suite should exercise | the design review, for `v0.0.1` |
+| FLOW-03, FLOW-07, FLOW-19 | Every assumption confirmed and the review approved before any task starts | the **Design review** entry; `wf` cannot gate work here yet (a17) |
+| FLOW-09 | A VZ boot blocks the loader pin change and the release, each a boot of the bytes it clears; otherwise tracked | task 6's and task 9's preconditions (task 7) |
+| FLOW-08, FLOW-16, FLOW-17 | Jeff merges; agents push feature branches only, never `main`, never by force, and delete no remote branch. The one deletion of an unmerged branch in this plan is a25 | the rule and the sessions' settings while the repository is private, since its host offers no branch protection until it is public (a16); branch protection from then on; head branches deleted on merge from task 0 |
+| FLOW-14, FLOW-20 | No rule of the main repository is changed from here, and none is waived (a24, a25). This design lists the umbrella in `related` | the design review |
 | FLOW-18 | a11 | `sessions-private` job |
 
 **What is high-severity under GLOBAL-06 here.** Every change under
@@ -1634,6 +1647,31 @@ and a read-only token. Checkouts use `persist-credentials: false`, with one
 exception: `flow18.yml`, whose script lists the remote's refs and needs
 the job's read-only token to do that while the repository is private. The
 main repository's `flow18.yml` leaves the credential in place too.
+
+No workflow uses a configured secret; the only credential is the job's own
+token. The permissions a job adds to `contents: read`, each for that job
+alone:
+
+| Job | Adds | For |
+|---|---|---|
+| `builder.yml`, its one job | `packages: write` | pushing the builder image |
+| `images`, `images-rebuild` (`ci.yml`) and the two builds in `release.yml` | `packages: read` | pulling the builder image while its package is private |
+| `release.yml`, the publishing job | `contents: write`, `packages: write`, `id-token: write` | creating the release; pushing the OCI index to the registry; cosign's keyless signature |
+
+**Pulling the builder while the repository is private.** The builder's
+package is created by `builder.yml`, from this repository, and is private
+until step 14 of **Going public** makes it public. Until then the jobs
+that pull it log in to the registry with the job's token, which is why
+they add `packages: read`. `ci-ok` has to be green on `main` before the
+visibility change (step 9), and it needs `images` and `images-rebuild`,
+so this path is exercised while the repository is private, not after.
+Once the package is public a pull needs no login, and the pull request
+that follows the visibility change removes the login step, so that a
+fork's pull request, whose token may not read packages, pulls the same
+way as any other. That a package pushed by a repository's own workflow
+can be pulled with that repository's job token is general knowledge of
+the host, not checked here; task 4's first `images` run finds out, and
+if it cannot, the package's access settings are Jeff's to change.
 
 **`ci.yml`** (workflow `ci`): on pull requests, on pushes to `main`, weekly,
 and on demand.
@@ -1676,7 +1714,10 @@ the builder image.
 unikernel's `aarch64-vz` form, on the MacBook. No hosted runner can run VZ
 and nothing else boots that form. It blocks the pull request that changes
 the loader's toolchain pin (task 6) and the `v0.0.1` tag (task 9), and no
-other merge. After that it is a tracked gap: the form is not booted on
+other merge. Each blocking boot is of the bytes it clears, taken from the
+`images` job's uploaded `dist/` for the commit in question (task 7); the
+MacBook does not build them, because only a linux/amd64 build is
+canonical. After that it is a tracked gap: the form is not booted on
 every change. Hyper-V has nothing to boot until M2 gives the appliance a
 disk form.
 
@@ -1684,8 +1725,9 @@ disk form.
 repository's guard, with the same triggers (pushes to `main`, pull requests,
 daily, on demand), running `tools/flow18-check.sh origin`. The script is a
 copy of the main repository's `tools/workflow/flow18-check.sh`, kept until
-the loop repository supplies one to every component. Required beside
-`ci-ok`. Its checkout keeps the job's token, as above: on a private
+a later P1 item says how a second repository gets the loop's checks (the
+`loop-contract` design hands that question to `loop-repository`). Required
+beside `ci-ok` once `main` is protected. Its checkout keeps the job's token, as above: on a private
 repository `git ls-remote origin` fails without it, and the job has to be
 green on `main` before the visibility change (**Going public**, step 9).
 
@@ -1699,7 +1741,8 @@ on demand. Builds the builder image and pushes it to
 job only), and prints the digest. The digest reaches `pins.toml` by a pull
 request; nothing uses a builder image that `pins.toml` does not name.
 
-**`release.yml`**: on a `v*` tag (**Publication**).
+**`release.yml`**: on a `v*` tag (**Publication**). Its permissions are in
+the table above.
 
 **Code scanning** is a repository setting, not a workflow (a12).
 
@@ -1849,8 +1892,12 @@ Inside, `xtask` does these in order, each at a fixed path under `/work`:
 | `unikernel` | `x86_64` | `relay-hermit-x86_64` (the application ELF), `hermit-loader-x86_64-linux`, `hermit-loader-x86_64-multiboot` |
 | `unikernel` | `aarch64` | `relay-hermit-aarch64`, `hermit-loader-aarch64-elf`, `hermit-loader-aarch64-vz.Image` |
 | `appliance` | `x86_64`, `aarch64` | `relay-appliance-<arch>-kernel`, `relay-appliance-<arch>-initramfs.cpio` |
-| `oci` | both, one index | `relay-oci/` (an OCI image layout) |
-| `host-binary` | linux `x86_64`, `aarch64` | `relay-linux-<arch>` (the same binary the appliance and the OCI image contain) |
+| `oci-image` | both, one index | `relay-oci/` (an OCI image layout) |
+
+The form names are the K1 redraft's provisional ones (a20). There is no
+`host-binary` row: the Linux `relay` binary is in `dist/` only inside the
+appliance's initramfs and the OCI image's layer, and the form first
+appears with host mode in M3 (a27).
 
 A hypervisor boots a unikernel as a pair: the loader as the kernel, the
 application as the initial ramdisk. Which loader forms the relay finally
@@ -1887,11 +1934,15 @@ publish it on those terms is a20.
       "requires": ["virtio-rng"],
       "digest": "sha256:<...>"
     },
-    {"form": "oci", "index_digest": "sha256:<...>",
+    {"form": "oci-image", "index_digest": "sha256:<...>",
      "platforms": [{"arch": "x86_64", "manifest_digest": "sha256:<...>"}, {"arch": "aarch64", "manifest_digest": "sha256:<...>"}]}
   ]
 }
 ```
+
+The example leaves out the aarch64 unikernel and the two appliance
+entries. An appliance entry has the same shape as the unikernel's, with
+two files whose roles are `kernel` and `initramfs` (a20).
 
 A form's `digest` is the SHA-256 of its files' `SHA256SUMS` lines
 (`<sha256>  <name>`, sorted by name, each ending in a newline), so it can be
@@ -1964,32 +2015,48 @@ does not power itself off is stopped by `xtask` once the banner is seen.
   the banner appears, then removes the container.
 - Unikernel on VZ (`hermit-loader-aarch64-vz.Image`): not in CI. An
   attended session on the MacBook boots it with the spike's `vzrun` and
-  records the console log. Required before the loader pin changes and
-  before `v0.0.1`; not run on other changes (a17 says how the session is
-  started while there is no queue).
+  records the console log, with the SHA-256 of the loader and of the
+  application it booted. Required before the loader pin changes and
+  before `v0.0.1`, each time for the bytes in question (task 7); not run
+  on other changes (a17 says how the session is started while the queue
+  has no step for this repository).
 
 **Publication** (`release.yml`, on a `v*` tag; the tag is pushed by Jeff, or
 by an attended session on his word):
 
 1. Check that the tag is on `main` and equals the workspace version.
    Before pushing the tag, Jeff has the VZ boot's console log for this
-   commit's `aarch64-vz` form, or for an earlier commit with the same
-   manifest digest for that form; the workflow cannot check this, so the
-   release task does.
+   commit's `aarch64-vz` form: the two files of the `images` job's
+   `dist/` for this commit on `main`, with their SHA-256 recorded beside
+   the log (task 7). An earlier commit's boot does not serve. The build
+   time is part of the kernel and of the loader, so no two commits build
+   the same bytes for this form, and a digest never carries over. The
+   workflow cannot check that the boot happened, so the release task
+   does.
 2. Build, rebuild and compare, as above. A difference stops the release.
+   The release task then compares the manifest's hashes for
+   `hermit-loader-aarch64-vz.Image` and `relay-hermit-aarch64` with the
+   ones recorded at the boot. They are equal if the build reproduces,
+   which is the rule this whole section rests on; a difference is a
+   return to this design (FLOW-06), with the pre-release marked as not
+   booted.
 3. Create the GitHub release with every file of every form,
    `relay-manifest.json` and `SHA256SUMS`, and sign the last two with
    cosign's keyless flow, as the main repository's release signs its
    checksums. Versions below `0.1.0` are marked pre-release.
 4. Push the OCI index to `ghcr.io/buildwarden/buildwarden-relay:<version>`
    and fail unless the registry reports the manifest's `index_digest`. (The
-   name `ghcr.io/buildwarden/relay` is the Go relay's.)
+   name `ghcr.io/buildwarden/relay` is the Go relay's.) Whether a package
+   first pushed from a public repository is itself public was not
+   determined; the release task checks, and making it public is Jeff's.
 5. Put each form's digest in the release notes.
 
 So a release's hashes are published three ways: the signed manifest, the
 release notes, and the registry's own digest for the OCI image. How a driver
-obtains and checks them is K1's "relay source" and each driver's M6 item,
-against seam 8's specification, not against this version 0 (a20).
+obtains and checks them is for a relay source that pins a release, which
+K1's redraft does not build and leaves to seam 8 (its a3 and a11), and for
+each driver's M6 item, against seam 8's specification, not against this
+version 0 (a20).
 
 **What M1 delivers of this:** the builder image, `pins.toml`, the `xtask`
 commands, the `images`, `images-rebuild`, `repro` and `smoke` jobs,
@@ -2035,67 +2102,103 @@ has on its branch, so that the umbrella's citation resolves on `main`.
 
 ### The Loop Contract adopted
 
-Two drafts describe adoption, and neither is final.
+The contract this repository adopts is the one the `loop-contract` design
+finishes (**Prior art**): nine rules, LOOP-01 to LOOP-09, in
+`docs/development/loop-contract.md` on the main repository's `main`. It
+stays there until P1's last item moves the loop to its own repository.
+That design is in review and not merged, so none of it is on `main` yet:
+there is no contract to link to and no list of profile terms. This section
+is written against it as read on 2026-11-14 and against Jeff's answers to
+its questions, cited by ID. Its rule wording may still change.
 
 Jeff's Loop Contract draft, section 8, asks four things of a component
 repository: link to the contract from the README and the loop
-configuration; fill the local column of its section 1 (the specification's
-location, the concrete checks, the queue's contents, the machines and
-schedules, where reports are posted, reconciliation dates and owners);
-declare the safety invariants; declare the consumables. Its section 3 names
-the relay's invariants: three crates and two architectures build;
+configuration; fill the local column of its section 1; declare the safety
+invariants; declare the consumables. Its section 3 names the relay's
+invariants: three crates and two architectures build;
 `forbid(unsafe_code)`, a dependency audit, and the no-filesystem and
-no-process lints hold.
+no-process lints hold. The `loop-contract` design turns that into rule
+LOOP-08.
 
-The P1 design draft (**Prior art**) turns that into rule LOOP-08 and lists
-what this repository does, in six steps. It puts the contract at
-`docs/development/loop-contract.md` on the main repository's `main` until
-`loop-repository` moves it, and says its steps 1 to 5 "need nothing from
-`loop-repository` and can be the relay's M1". That draft is unreviewed, so
-none of it exists on `main` yet: there is no contract to link to, no list
-of profile terms, and no prefix table to register in.
+**What adopting means here.** LOOP-08, as proposed, has six steps, and a
+repository that has done them is a component. The six need nothing from
+P1's later items. For this repository:
 
-The main repository's queue has both items: `loop-contract` (priority 59,
-in progress, at its design step) and `loop-repository` (priority 60,
-queued, holding the cloud and every host while it runs). S1's `seam-specs`
-(priority 61) is in design. So adoption splits by what each piece needs.
-First, what needs nothing and is M1a:
-
-| Work | P1 draft step | Needs | When |
+| Step | Here | Needs | When |
 |---|---|---|---|
-| The invariants themselves, as CI: three crates, two architectures, `forbid(unsafe_code)`, `cargo deny`, the no-filesystem and no-process checks | 3, in substance | nothing | M1a |
-| `docs/invariants.md`: each invariant and the job that enforces it, as a plain table | 3, in substance | nothing | M1a |
-| Sessions recorded only to the private repository, and the FLOW-18 guard | 5 | nothing | M1a |
-| Trunk protected so only Jeff merges; head branches deleted on merge | 5 | the visibility change, or a plan that protects private repositories (a16) | M1a, at **Going public** steps 11 to 13 |
-| README, CONTRIBUTING, SECURITY | none | a14 | M1a |
-| Reproducible images and the stub pre-release, which is the content of "declare its consumables" | the draft's LOOP-08 item 5 | the kernel fork's tag; the builder image; the repository public | M1a |
+| 1. A link, not a copy | `README.md` and a new agent context file, `AGENTS.md`, link to the contract on the main repository's `main`. The link follows the contract's trunk and is not pinned. It changes once, when P1's last item moves the contract to the loop repository | `loop-contract` merged, so that the target exists | M1b, task 10 |
+| 2. A profile | One document that fills every term the contract lists, or says `none`. For this repository: Rust and the three toolchains; `main` as trunk; where the rules and designs are; the prefix of its own rules (step 3); the seams it implements and how it pins a specifications release (`[conformance]`); the fast gate (`cargo fmt`, `clippy`, `test`, `xtask check-pins`, `lint-sources`); the checks by class and tier; the host names its native work uses, from the one host table (`macos-vz` in M1); `GLOBAL-06` as read in **Rules mirrored** as its boundary rule; the release workflow; its session-recording configuration; and step 5's declarations | `loop-contract` merged: the term list is the contract's | M1b, task 10 |
+| 3. Its invariants as rules | In LINT-01's format (an ID, a severity, a check), under a prefix this repository names in its own profile. No prefix is registered in the contract (`loop-contract`'s a16), so choosing one changes nothing outside this repository; the review of the profile judges that it is unique. `RELAY-` is the main repository's until M6 moves those rules, so the relay's own invariants take another prefix until then, which task 10 proposes. The relay goes on citing the main repository's rules by ID as binding beside its own | The substance: nothing. The form: `loop-contract` merged | M1a for the substance (below); M1b, task 10, for the form |
+| 4. A design template | `docs/design/TEMPLATE.md`: the contract's core front matter and sections, plus this repository's. This design follows the main repository's template by hand and is not rewritten | `loop-contract` merged: it names the core keys | M1b, task 10 |
+| 5. Its consumables declared | In the profile: what it releases, which is the release forms (seam 8), the first of them the stub pre-release; and what it consumes, which is the specifications release and the three forks | The stub: the kernel fork's tag, the builder image, the repository public. The declaration: `loop-contract` merged | M1a, task 9, for the stub; M1b, task 10, for the declaration |
+| 6. The repository set up as FLOW-08, FLOW-16 and FLOW-18 need | Only Jeff merges to `main`, with the trunk protected where the host offers that; head branches deleted on merge; sessions recorded only to the private sessions repository, and the FLOW-18 guard run here (a11). Read on 2026-11-14, this repository is private, keeps head branches on merge, and cannot be protected on its current plan. So the deletion setting is turned on before task 0 merges, the guard lands in task 1, and `main` is protected in the sitting that makes the repository public (a16; `loop-contract`'s a21 lets a repository adopt while private) | Nothing, but for protection, which needs the visibility change | M1a: task 0, task 1, and **Going public** step 11 |
 
-Then what waits, and for which item. The first four rows wait only for
-`loop-contract` to merge, not for `loop-repository`; they are one task
-(task 10), and it can run as soon as that merge happens, whether or not
-M1a has finished:
+The substance of step 3 is M1a's and waits for nothing: the invariants
+themselves as CI jobs (three crates, two architectures,
+`forbid(unsafe_code)`, `cargo deny`, the no-filesystem and no-process
+checks), and `docs/invariants.md` as a plain table of each invariant and
+the job that enforces it. So are the README, `CONTRIBUTING.md` and
+`SECURITY.md` (a14), which no step asks for.
 
-| Work | P1 draft step | Needs | When |
+Task 10 is the rows that wait only for `loop-contract` to merge. It can
+run as soon as that merge happens, whether or not M1a has finished. If the
+`loop-contract` design changes before it merges (the steps, the profile's
+terms, the rule format, where the contract is), task 10 changes with it
+and nothing in M1a does: M1a builds the substance, and task 10 gives it
+the contract's form.
+
+**What adopting does not include: a queue.** There is one queue, on the
+main repository's `workflow` branch, for work in every repository, and a
+component has none of its own (`loop-contract`'s a18). This repository's
+work becomes items in that queue which name
+`buildwarden/buildwarden-relay`. That is not a step of LOOP-08. It is what
+P1's later items owe before the loop's gates run here, and each brings a
+part:
+
+| P1 item | State on 2026-11-14 | What it brings for this repository | Until then |
 |---|---|---|---|
-| The link to the contract, from `README.md` and from a new agent context file, `AGENTS.md`. The link is to the contract's trunk, first in the main repository and later in the loop repository | 1 | `loop-contract` merged, so that the target exists | M1b, task 10 |
-| The profile: one document that fills every term the contract lists, or says `none`. For this repository: Rust and the three toolchains; `main` as trunk; where the rules and designs are; the seams it implements and how it pins a specifications release (`[conformance]`); the fast gate (`cargo fmt`, `clippy`, `test`, `xtask check-pins`, `lint-sources`); the checks by class and tier; the native hosts its VM work uses; `GLOBAL-06` as read in **Rules mirrored** as its boundary rule; the release workflow; its consumables (the release forms) and what it consumes (the specifications release, the three forks); its session-recording configuration | 2 | `loop-contract` merged: the term list is the contract's | M1b, task 10 |
-| The invariants as rules in LINT-01's format (an ID, a severity, a check), under a prefix registered in the contract's table. `RELAY-` is the main repository's until M6 moves those rules, so the relay's own invariants need another prefix until then; choosing and registering it is a change to the contract, made through the main repository's process | 3 | `loop-contract` merged: the prefix table is the contract's | M1b, task 10 |
-| `docs/design/TEMPLATE.md`: the contract's core front matter and sections, plus this repository's. This design follows the main repository's template by hand and is not rewritten | 4 | `loop-contract` merged: it names the core keys | M1b, task 10 |
-| A queue for the relay, its loop configuration (per Jeff's draft, section 5: Mac-specific work to the MacBook; Hyper-V, Windows and Linux-host work to the Windows desktop), `wf` working across repositories, and run reports. The two tracked native gaps move to the loop repository's backlog | 6 | `loop-repository` | M1b, task 11 |
-| The relay's first item taken from the loop repository, which is half of P1's "done when" | 6 | `loop-repository` live enough to hold an item | M1b, task 11; the item is M1b itself |
-| The conformance pin | none | a release of `buildwarden-specs` (`seam-specs`) | M1b, task 12 |
-| A conformance target that must pass | none | a relay | M2 |
+| `loop-contract` | In its design review | The contract on `main`, so task 10 can run | M1a builds the substance |
+| `alters-slot` | In implementation | Nothing here: this design alters no relationship | |
+| `loop-parallel` | Not yet filed | The queue records the repositories an item names. What is still open of M1 is recorded as an item that names this repository, tracked and not gated (a17) | M1a is outside the queue, attended, with the **Design review** entry as its gate |
+| `loop-native-lead` | Not yet filed | A native machine may lead an item from its first step, so the MacBook could lead work that rests on a VZ boot | The VZ boots are attended sessions that Jeff starts |
+| `loop-repository` | Queued, not designed | `wf`'s gates, branches, pull requests and checks in this repository, with `wf` reading its profile; a checkout of it and its toolchain on the native machines; the rule for what a private repository's work shows in the public queue. From then on each relay task is an item `wf` gates, and the first to complete is the relay half of P1's done-when (a26). The two tracked native gaps go on the queue's native-gap backlog | Each task is a pull request worked by hand (a17) |
+| The move to the loop repository | Not yet filed; P1's last item | The link of step 1 changes, once | Links to the contract point at the main repository |
 
-If the P1 draft changes in review (the steps, the profile's terms, the
-rule format, where the contract lives), task 10 changes with it and
-nothing in M1a does: M1a builds the substance, and task 10 gives it the
-contract's form.
+What each of those items does is its own design's to settle. The third
+column is this design's reading of the `loop-contract` design's hand-off
+and of the change proposal, and it promises nothing on their behalf.
 
-Until `loop-repository` lands there is no relay queue, and M1a's work is
-done as a17 says. Nothing in M1a waits for P1 or S1. Whether that is what
-the umbrella's "S1 comes before M1's real work" allows is a19: this design
-reads it as binding relay behaviour, which M1 has none of, and the
-conformance pin, which waits for S1's release.
+**Routing and reconciliation**, where the contract differs from Jeff's
+draft and from this design as first drafted:
+
+- *Routing.* The profile lists host names. Which machine serves a host
+  name is the one host table's to say, beside the queue, not a
+  component's (`loop-contract`'s a15, parts a and c). Jeff's draft,
+  section 5, sends Hyper-V, Windows and Linux-host work to the Windows
+  desktop; the host table has `qemu-any` on the MacBook, and the table
+  wins. Work that any capable machine can do goes to whichever capable
+  worker next takes steps, under a lease that can be renewed (part b of
+  that question, as Jeff answered it; the mechanism arrives with a later
+  P1 item). M1's one native need is `macos-vz`.
+- *Reconciliation.* Moving the `[conformance]` pin to a new specifications
+  release, or the fork pins to a new Hermit tag, is what the contract
+  calls a reconciliation item ("adopt X at version Y"). Once the queue
+  holds this repository's work, each is a feature item that FLOW-05 ranks
+  with the fixes (`loop-contract`'s a5, as Jeff answered it). Task 12
+  sets the first pin by hand.
+
+**What waits for S1**, and is not adoption:
+
+| Work | Needs | When |
+|---|---|---|
+| The conformance pin | A release of `buildwarden-specs` (`seam-specs`) | M1b, task 12 |
+| A conformance target that must pass | A relay | M2 |
+
+Until P1's later items land, M1a's work is done as a17 says. Nothing in
+M1a waits for P1 or S1. Whether that is what the umbrella's "S1 comes
+before M1's real work" allows is a19: this design reads it as binding
+relay behaviour, which M1 has none of, and the conformance pin, which
+waits for S1's release.
 
 ### Going public
 
