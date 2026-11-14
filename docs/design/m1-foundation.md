@@ -56,6 +56,9 @@ conflicts table under **Prior art**. It lists the umbrella in `related`, as
 FLOW-20 asks of a program item's design. FLOW-20 defines a program item as a
 queue item, and this design has no queue item: the one queue cannot hold
 work in this repository yet, and how M1 is worked until it can is a17.
+The work is in two repositories: this one, and
+`buildwarden/hermit-kernel` for one carried commit (task 3). Neither has
+adopted the Loop Contract, and a17 says which rules bind in each.
 
 It was revised on 2026-11-14, before its review, for what Jeff settled that
 day about the loop (one queue) and the driver contract, and for an
@@ -108,10 +111,14 @@ relay code is written:
    says that wiring is M1's. P1 is done, in the umbrella as merged, when
    "this repository's loop and the relay's loop each complete one item from
    the loop repository". Since 2026-11-14 there is one loop and one queue,
-   and the `loop-contract` design proposes that sentence as one item in the
-   main repository and one in this repository each completing from the one
-   queue (its a18 and a20). Either way a relay item has to be workable by
-   the loop, and the repository has to be one the loop can work in.
+   and the `loop-contract` design proposes that sentence as "One item in
+   this repository and one item in the relay repository each complete from
+   the one queue in the loop repository" (its amendment U9, with its a18
+   to a20), which is after the loop has moved. The same thing is asked
+   once before the move, when `loop-repository` lets `wf` gate work here:
+   that is the wave-1 gate under its a22 as recommended, which is open.
+   Either way a relay item has to be workable by the loop, and the
+   repository has to be one the loop can work in.
 4. **The repository goes public at M1** (Decision 16), so what is in it, in
    every commit on every ref, has to be fit to publish.
 
@@ -160,9 +167,10 @@ What M1 does not do is build a relay. `relay-core` starts in M2.
   the precedent this design follows: `linux-6.1.191.tar.xz` checked against
   a `sha256` copied from kernel.org's signed list.
 - The S1 design: `docs/design/seam-specs.md` on branch `feat/seam-specs`,
-  read on 2026-11-14 at `618ae78` and in the revision then being made to
-  it for one queue. Its Design step is done and it waits for its design
-  review; it is cited here by section and question, not by line. It plans a Go harness, `bw-conformance`, in
+  read on 2026-11-14 at `6e56fed`, after its own revision for one queue
+  and the redrafted driver contract. Its Design step is done and it waits
+  for its design review; it is cited here by section and question, not by
+  line. It plans a Go harness, `bw-conformance`, in
   `buildwarden/buildwarden-specs`, released as a module tag and as static
   binaries with a `SHA256SUMS` file (its Decision 5, and **Releases and how
   they are consumed**), driven by a *target file* (TOML) that names a
@@ -173,13 +181,17 @@ What M1 does not do is build a relay. `relay-core` starts in M2.
   repository**). **Conformance** below is written against that design and
   says what changes if it changes.
 - The P1 design: `docs/design/loop-contract.md` on branch
-  `feat/loop-contract`, read on 2026-11-14 at `04cc9bb`. It is in its design
+  `feat/loop-contract`, read on 2026-11-14 at `7af50ff`. It is in its design
   review. Jeff stopped the first sitting, settled the direction the same
   day (one queue, items that do not collide side by side, items a native
-  machine leads), and has since answered its questions; three of his
-  answers differ from what that text recommends (its a5, part b of its a15,
-  and its a19) and are being folded into it. So it is cited here by
-  question ID, as answered, and its rule wording is not quoted as final. It
+  machine leads), and at a second sitting answered twenty of its
+  questions. Three of his answers departed from the recommended option
+  (its a5, part b of its a15, and its a19) and are folded in. Three
+  questions those answers raised are open: its a22 (what the wave-1 gate
+  waits for), and its a23 and a24 (which later item makes the rule on
+  reconciliation items, and the rule on work any capable machine can do,
+  true). It is still being edited, so it is cited here by question ID, as
+  answered or as open, and its rule wording is not quoted as final. It
   turns Jeff's Loop Contract draft into nine rules, LOOP-01 to LOOP-09, in
   `docs/development/loop-contract.md` of the main repository. What this
   design takes from it:
@@ -213,6 +225,14 @@ What M1 does not do is build a relay. `relay-core` starts in M2.
     its own repository, which the umbrella's Decision 13 names (its a19).
     `loop-repository` is queued and not yet designed; `loop-parallel`,
     `loop-native-lead` and the move are not yet filed.
+  - *What P1 is done at, and what wave 2 waits for.* P1 is done when the
+    loop has moved and an item in each repository has completed from the
+    queue in the loop repository (its U9). Before the move,
+    `loop-repository` delivers the same thing from the queue where it is
+    now: an item in the main repository and an item in this repository
+    each complete from the one queue. Under its a22 as recommended (open)
+    that earlier point is the wave-1 gate, which M2 waits for; under
+    a22's second option the gate is the move.
 
   **The Loop Contract adopted** below is written against that, with the
   same caveat as for S1's.
@@ -409,7 +429,7 @@ settled here. Each is a question for Jeff:
 | Seam 8's forms: "host-mode binary per platform, unikernel image, appliance image, OCI image" | Host mode is M3's (Decision 11). Whether M1's stub release already lists a `host-binary` form for the Linux binary it builds | a27 |
 | The VZ networking report is cited as "`spike/vznet/REPORT.md` on its branch `spike/vz-net-entitlements`" | That branch holds host details; a15's recommended option ends with the branch deleted and a redacted copy on `main`, so the umbrella's pointer goes stale. Deleting it meets FLOW-16, and correcting the pointer amends an archived design | a15, a25, a28 |
 | "What the TEST-08 suite should exercise: for S2 ...; for S3 ...; for M6, the existing relay cases against each release form" | No relay release before M6 is on that list, the suite does not exist, and its item is closed until after the freeze (Decision 14). TEST-08 as written binds a release that trips GLOBAL-06, which this design reads every relay release as doing | a24 |
-| M1 includes "the Loop Contract adopted", and P1 is done when "the relay's loop" completes an item | With one queue, adoption no longer includes a queue. Whether M1 is done at adoption, or only when a relay item has completed from the one queue, which waits for `loop-repository` | a26 |
+| M1 includes "the Loop Contract adopted", and P1 is done when "the relay's loop" completes an item | With one queue, adoption no longer includes a queue. Whether M1 is done at adoption, or only when a relay item has completed from the one queue, which waits for `loop-repository`; and, if at adoption, which relay item then passes the wave-1 gate | a26 |
 
 **The umbrella's sentences on queues.** Where this design quotes the
 umbrella it quotes the text merged at `b903f65`. One queue changes its
@@ -424,7 +444,7 @@ this design proposes none of its own.
 
 Jeff has not reviewed this design. It was drafted, checked by two reviewers
 and revised by 2026-11-13 (`13ce286`). This revision was made on
-2026-11-14, before any review sitting, and does three things:
+2026-11-14, before any review sitting, and does four things:
 
 1. **It folds in what Jeff settled on 2026-11-14.** One queue, with no
    queue for this repository; an item may work in a repository that has
@@ -448,13 +468,29 @@ and revised by 2026-11-13 (`13ce286`). This revision was made on
    row (a27); and where the Firecracker trial is recorded (task 5).
 3. **It brings citations up to date**: the S1, P1 and K1 designs as read
    on 2026-11-14, and both repositories' settings as read that day.
+4. **It takes up a reviewer's findings on the revision itself.** P1's
+   done-when and the wave-1 gate are stated as the `loop-contract` design
+   now has them, with its a22 open (Problem, a26, **The Loop Contract
+   adopted**, task 11). a26 says which relay item passes that gate if M1
+   is done first. The kernel fork is named as a second repository M1
+   works in, with the four rules that bind a session there (a10, a17,
+   task 3). And five smaller points: when a native machine could lead
+   work here, `release.yml`'s permissions, which commit a pull-request
+   run builds (**CI**, task 7), the options for what a private
+   repository shows in the public queue (a17), and when the tag is
+   pushed (a13).
 
-Questions a1 to a23 keep their IDs. a13, a15, a16, a17, a20 and a21 are
-reworded, and a11 gains a sentence. a24 to a28 are new. None is retired.
-The table at the head of **Assumed** lists them. Two recommendations
-changed with the direction: a17's (no queue for this repository, where it
-had "the relay's first queue item is filed in M1b") and, through a26,
-what M1 is done at. One changed with a concern: a16's order.
+Questions a1 to a23 keep their IDs. a10, a13, a15, a16, a17, a20 and a21
+are reworded, and a11 gains a sentence. a24 to a28 are new. None is
+retired. The table at the head of **Assumed** lists them. What the design
+proposes changed in these places: a17 (no queue for this repository,
+where it had "the relay's first queue item is filed in M1b") and, through
+a26, what M1 is done at, both with the direction; a16's order, with a
+concern; a20's names (the manifest says `oci-image`, where it said
+`oci`), with K1's redraft; a27 (three forms in `v0.0.1`, where the forms
+table had four), with a concern; and a24 (no promise of a security suite
+by M2's release, where the draft said that release "may not ship without
+the suite"), with a concern.
 
 ## Decisions
 
@@ -673,10 +709,10 @@ Against the text at `13ce286`, after the revision of 2026-11-14:
 
 | | Questions |
 |---|---|
-| Unchanged | a1 to a10, a12, a14, a18, a19, a22, a23 |
+| Unchanged | a1 to a9, a12, a14, a18, a19, a22, a23 |
 | A sentence added | a11 (the contract as proposed asks the same) |
-| Reworded | a13 (its first and third acceptances), a15 (the branch deletion and the umbrella's pointer now point to a25 and a28), a16 (the order, and the two settings as read), a17 (one queue: rewritten), a20 (K1's redraft; a second part on names), a21 (one clause on the Loop Contract's home) |
-| New | a24 (the relay's security-testing invariant, in place of a waiver of TEST-08), a25 (the unmerged spike branch and FLOW-16), a26 (M1 done at adoption), a27 (no `host-binary` form in M1), a28 (the two follow-ups in the main repository) |
+| Reworded | a10 ("the session" where it had "the loop"; the fork as a second repository M1 works in), a13 (when the tag is pushed; its first and third acceptances), a15 (the branch deletion and the umbrella's pointer now point to a25 and a28), a16 (the order, and the two settings as read), a17 (one queue: rewritten; the kernel fork; what a private repository's work shows in the public queue), a20 (K1's redraft; a second part on names), a21 (one clause on the Loop Contract's home) |
+| New | a24 (the relay's security-testing invariant, in place of a waiver of TEST-08), a25 (the unmerged spike branch and FLOW-16), a26 (M1 done at adoption, and which relay item then passes the wave-1 gate), a27 (no `host-binary` form in M1), a28 (the two follow-ups in the main repository) |
 | Retired | none |
 
 - **a1. The second binary crate is `relay-native`, and its binary is
@@ -757,12 +793,15 @@ Against the text at `13ce286`, after the revision of 2026-11-14:
   dependencies, so the third-party notices of the first real release must
   cover the kernel's set as well (deferred to M2).
 - **a10. The fork change goes in by pull request to `bw/v0.13.2`, merged
-  and tagged by Jeff or by an attended session on his word.** The loop
-  writes the commit on a branch of `buildwarden/hermit-kernel` and opens the
-  pull request; it does not push a `bw/` branch or a tag. Options: (A) as
-  stated; (B) the loop pushes `bw/` branches and tags itself. *Proceeding
-  with A:* a `bw/` branch is the fork's trunk (FLOW-08), and a tag is what
-  `pins.toml` trusts.
+  and tagged by Jeff or by an attended session on his word.** The session
+  that works task 3 writes the commit on a branch of
+  `buildwarden/hermit-kernel` and opens the pull request; it does not push
+  a `bw/` branch or a tag. Options: (A) as stated; (B) the session pushes
+  `bw/` branches and tags itself. *Proceeding with A:* a `bw/` branch is
+  the fork's trunk (FLOW-08), and a tag is what `pins.toml` trusts. The
+  fork is a second repository this design works in, and it has not
+  adopted the contract either; the four rules that bind the session
+  there are under a17.
 - **a11. Agent sessions that commit here are recorded as the main
   repository's are, and this repository gets the same guard.** A
   `.entire/settings.json` naming `buildwarden/buildwarden-sessions`, and a
@@ -785,7 +824,8 @@ Against the text at `13ce286`, after the revision of 2026-11-14:
 - **a13. M1a ends with a stub pre-release, `v0.0.1`.** The Loop Contract
   draft, section 8, step 4: "Declare its consumables ..., even if the first
   release is a stub." Options: (A) Jeff, or an attended session on his
-  word, pushes `v0.0.1` once M1a has merged and the repository is public;
+  word, pushes `v0.0.1` once task 9's release workflow has merged and the
+  repository is public;
   the release workflow publishes the stub images with their manifest,
   marked as a pre-release that does nothing; (B) no tag until M2 has a
   relay. *Proceeding with A.* The release path and the published hash are
@@ -919,16 +959,21 @@ Against the text at `13ce286`, after the revision of 2026-11-14:
   here, and `wf` looks for a design and a branch in the main repository
   only. The queue records the repositories an item names from
   `loop-parallel`, and `wf` runs its gates, branches and pull requests in
-  a second repository from `loop-repository`. Options: (A) the change
-  proposal's answer (its question 10, recommended option), which is part
-  of the direction Jeff took: M1a is worked by hand after this design's
-  review, in attended sessions, on feature branches of this repository,
-  through pull requests Jeff merges. The sessions are bound here by
-  FLOW-08, FLOW-16, FLOW-17 and FLOW-18, the four rules `loop-contract`'s
-  a17 names for a repository that has not adopted, and by the invariants
-  **Rules mirrored** lists. Once `loop-parallel` lands, what is still
-  open of M1 is recorded in the one queue as an item that names this
-  repository, tracked and not gated. Once `loop-repository` lands, each
+  a second repository from `loop-repository`. M1 works in two
+  repositories, and neither has adopted the contract:
+  `buildwarden/buildwarden-relay`, for every task but one, and
+  `buildwarden/hermit-kernel`, for task 3's one commit (a10). Options:
+  (A) the change proposal's answer (its question 10, recommended
+  option), which is part of the direction Jeff took: M1a is worked by
+  hand after this design's review, in attended sessions, on feature
+  branches, through pull requests Jeff merges. The sessions are bound in
+  both
+  repositories by FLOW-08, FLOW-16, FLOW-17 and FLOW-18, the four rules
+  `loop-contract`'s a17 names for a repository that has not adopted, and
+  by the invariants **Rules mirrored** lists. Once `loop-parallel` lands,
+  what is still open of M1 is recorded in the one queue as an item that
+  names the repositories it still works in, tracked and not gated. Once
+  `loop-repository` lands, each
   task still open, and every later milestone's work, is an item `wf`
   gates here; (B) hold M1a until `loop-parallel` lands, so that none of
   it is outside the queue's record; (C) recast M1 as one item with one
@@ -963,16 +1008,54 @@ Against the text at `13ce286`, after the revision of 2026-11-14:
     in this design's front matter and in `docs/invariants.md`, and they
     are filed on that backlog once a native session can work in this
     repository (task 11).
+  - *The kernel fork.* `buildwarden/hermit-kernel` is public, keeps head
+    branches on merge, has no protection on `bw/v0.13.2`, and carries no
+    session-recording configuration (read with `gh api` on 2026-11-14).
+    M1 changes none of those settings; they are the fork's to set when
+    it adopts. a11's guard is for this repository alone. The four rules,
+    for task 3's session there:
+    - FLOW-08: Jeff merges the pull request and pushes the tag (a10).
+    - FLOW-17: the session pushes its task branch, by name, once the
+      change is committed and the kernel builds with it, with the
+      measurement of **What was measured** repeated against the branch
+      (two builds of the spike's app in one directory, with
+      `SOURCE_DATE_EPOCH` set, agree). It pushes nothing else: not
+      `bw/v0.13.2`, not a tag, never by force.
+    - FLOW-16: Jeff deletes the task branch after the merge, by hand,
+      since the fork does not delete head branches. The session names
+      the command and runs none.
+    - FLOW-18: what the rule forbids, a recording reaching a public
+      repository, is checked: the session lists the fork's refs before
+      and after its push and records in the pull request that none is
+      an `entire/` ref. What the rule wants, the session recorded to the
+      private sessions repository, is not assured there. Whether the CLI
+      records from a checkout with no `.entire/settings.json` was not
+      determined; if it does not, the record of that session is the pull
+      request and the session in this repository that takes up the tag.
+
+    The alternative is to give the fork the settings file and the
+    guard, which is one more carried commit, classed a deviation, on a
+    branch that tracks upstream. This design does not propose it: it
+    belongs to the item in which the forks adopt the contract, which
+    Jeff files (`loop-contract`'s a17). Confirming A confirms working
+    task 3 on these terms.
   - *What a private repository's work shows in the public queue.* The
     queue, its digest and its reports are public, and this repository is
     private until **Going public**. The `loop-contract` design leaves the
-    rule to `loop-repository`, together with this question. Proceeding
-    with: before the visibility change, nothing of this repository's
+    rule to `loop-repository`, together with this question, and the
+    change proposal asked it as a fork (its question 10). Three answers:
+    (i) before the visibility change, nothing of this repository's
     content (file text, logs, scan results) is written to the queue, the
-    digest or a report. An entry gives the item's name, its state, pull
+    digest or a report; an entry gives the item's name, its state, pull
     request numbers and commit IDs, which is what the digest of
-    2026-11-12 already says of this design. After the change, relay work
-    is written up as any other.
+    2026-11-12 already says of this design; (ii) an entry may also hold
+    whatever the scans of a15 and **Going public** step 1 have cleared,
+    which lets a report quote the repository before it is public and
+    rests on those scans having missed nothing; (iii) nothing of the
+    relay's work is recorded in the queue until the repository is
+    public, which keeps `loop-parallel`'s tracked item for M1 out of the
+    queue until then. *Proceeding with (i).* After the change, relay
+    work is written up as any other.
 
   Under B nothing in this repository starts before `loop-parallel`, which
   is not yet filed. Under C the nine pull requests of M1a become one,
@@ -1180,20 +1263,45 @@ Against the text at `13ce286`, after the revision of 2026-11-14:
 - **a26. M1 is done at adoption, not at the relay's first gated item.**
   The umbrella's M1 includes "the Loop Contract adopted". As drafted,
   this design also put into M1b "the relay's first item taken from the
-  loop repository", which was half of P1's done-when. With one queue,
-  adoption is LOOP-08's six steps as the `loop-contract` design proposes
-  them, and a repository's work being in the queue is not one of them:
-  that design puts it outside the six steps, as what P1's later items
-  owe. Options: (A) M1 is done when M1a is done, the six steps are done
-  (task 10) and the conformance pin is set (task 12). The first relay
-  item that `wf` gates is P1's to complete, with whichever relay work is
-  next when `loop-repository` lands (task 11), and M1 does not wait for
-  it; (B) as drafted: M1 stays open until a relay item has completed
-  through `wf`'s gates. M1 then waits for `loop-parallel`,
-  `loop-native-lead` and `loop-repository`, which is most of P1.
+  loop repository", which was the relay half of P1's done-when as the
+  umbrella has it. With one queue, adoption is LOOP-08's six steps as the
+  `loop-contract` design proposes them, and a repository's work being in
+  the queue is not one of them: that design puts it outside the six
+  steps, as what P1's later items owe. A relay item completing from the
+  one queue is now asked for twice there: once when `loop-repository`
+  lands, which is the wave-1 gate under its a22 as recommended (open),
+  and again after the move, which is P1's done-when (its U9). Options:
+  (A) M1 is done when M1a is done, the six steps are done (task 10) and
+  the conformance pin is set (task 12). The first relay item that `wf`
+  gates is P1's to see completed, and M1 does not wait for it. A has a
+  cost the draft did not have. Wave 2 includes M2, and under
+  `loop-contract`'s a22 as recommended it waits for that relay item. If
+  M1 is done before `loop-repository` lands, which is likely, since that
+  is P1's fifth item and two before it are not yet filed, then no M1
+  task is left to be the item, and M2's first item cannot be it, because
+  it is waiting on the same gate. So under A the item is, in this
+  order: task 10 or task 12, if either is still open then; otherwise a
+  small relay item filed at intake with Jeff for the purpose (task 11).
+  Its content is whatever `loop-repository`'s design asks of this
+  repository, if that is a change here, or else the next pin move, a
+  reconciliation item. What it changes matters less than that it passes
+  every gate here. It is a program item, since it exists to pass a gate
+  of the program, so the freeze does not hold it (FLOW-20; intake's and
+  its review's judgment); (B) as drafted: M1 stays open until a relay item has
+  completed through `wf`'s gates. M1 then waits for `loop-parallel`,
+  `loop-native-lead` and `loop-repository`, which is most of P1. B is
+  the option that guarantees a relay item exists for the gate: M1
+  itself; (C) A, but task 12 is held to be that item even if S1's
+  release comes first. No item has to be made up, and the conformance
+  wiring goes unproven until `loop-repository` lands, which costs
+  nothing while M2 cannot start, and M1 stays open as long as under B.
   *Proceeding with A.* When M2 may start is the umbrella's wave-1 gate,
   not this design's, and what that gate is with one queue is
-  `loop-contract`'s to settle.
+  `loop-contract`'s a22, which is open. Under a22's second option the
+  gate is the move itself, M2's first item can then be the relay item
+  that P1's done-when asks for after the move, and the cost above arises
+  only if `loop-repository`'s own design wants a relay item to prove
+  itself on before then.
 - **a27. Whether `v0.0.1` lists a `host-binary` form.** As drafted, the
   forms table had a fourth row, `host-binary`: `relay-linux-x86_64` and
   `relay-linux-aarch64` in `dist/`, the same binary the appliance and the
@@ -1602,7 +1710,12 @@ repository's rules apply by ID, and this table says which bind work here
 and how each is met. That is what the `loop-contract` design proposes for
 an item that works in a repository that has not adopted: the worker is
 bound by FLOW-08, FLOW-16, FLOW-17 and FLOW-18, and the item's design says
-which invariants apply, by rule ID (its a17). `docs/invariants.md` holds
+which invariants apply, by rule ID (its a17). M1 works in a second such
+repository, `buildwarden/hermit-kernel`, for task 3's one commit. The
+same four rules bind the session there, and a17 says how each is held;
+of the invariants below, GLOBAL-05 and GLOBAL-06 apply to that commit,
+and the fork's own checks and its `CARRIED.md` are what it is held to
+otherwise (the umbrella's Decision 15). `docs/invariants.md` holds
 the same table with job names, and the two tracked native gaps, so the
 contract's "declare the component's safety invariants" has something to
 point at. In M1a it is a plain table. The contract asks for a component's
@@ -1641,9 +1754,9 @@ meets one it cannot follow as written.
 | TEST-08 | Not mirrored as written; a24 asks what binds here. Under its recommended option the relay's invariant is that the suite runs on a release with code on the env-relay boundary, so not on the stub `v0.0.1`. No suite exists yet (the main repository's `security-suite` item is closed for re-intake), and this design does not promise one by M2. The Security note says what the suite should exercise | the design review, for `v0.0.1` |
 | FLOW-03, FLOW-07, FLOW-19 | Every assumption confirmed and the review approved before any task starts | the **Design review** entry; `wf` cannot gate work here yet (a17) |
 | FLOW-09 | A VZ boot blocks the loader pin change and the release, each a boot of the bytes it clears; otherwise tracked | task 6's and task 9's preconditions (task 7) |
-| FLOW-08, FLOW-16, FLOW-17 | Jeff merges; agents push feature branches only, never `main`, never by force, and delete no remote branch. The one deletion of an unmerged branch in this plan is a25 | the rule and the sessions' settings while the repository is private, since its host offers no branch protection until it is public (a16); branch protection from then on; head branches deleted on merge from task 0 |
+| FLOW-08, FLOW-16, FLOW-17 | Jeff merges; agents push feature branches only, never `main`, never by force, and delete no remote branch. The one deletion of an unmerged branch in this plan is a25. In the kernel fork the same holds, with `bw/v0.13.2` as the trunk; its task branch is deleted by Jeff, by hand (a17) | the rule and the sessions' settings while the repository is private, since its host offers no branch protection until it is public (a16); branch protection from then on; head branches deleted on merge from task 0 |
 | FLOW-14, FLOW-20 | No rule of the main repository is changed from here, and none is waived (a24, a25). This design lists the umbrella in `related` | the design review |
-| FLOW-18 | a11 | `sessions-private` job |
+| FLOW-18 | a11. In the kernel fork, which has no settings file and no guard: a17 | `sessions-private` job; in the fork, the session's listing of its refs |
 
 **What is high-severity under GLOBAL-06 here.** Every change under
 `crates/` is a change to the relay. So is a change to what guards or builds
@@ -1671,7 +1784,7 @@ alone:
 | Job | Adds | For |
 |---|---|---|
 | `builder.yml`, its one job | `packages: write` | pushing the builder image |
-| `images`, `images-rebuild` (`ci.yml`) and the two builds in `release.yml` | `packages: read` | pulling the builder image while its package is private |
+| `images`, `images-rebuild` (`ci.yml`) | `packages: read` | pulling the builder image while its package is private. `release.yml`'s two builds do not add it: by a16's order that workflow is added in task 9, after the package is public. If that order changes, they add it the same way |
 | `release.yml`, the publishing job | `contents: write`, `packages: write`, `id-token: write` | creating the release; pushing the OCI index to the registry; cosign's keyless signature |
 
 **Pulling the builder while the repository is private.** The builder's
@@ -1725,6 +1838,20 @@ later restores (the reason the main repository's `integration.yml` gives for
 its own rule). `images`, `images-rebuild` and `release` use no cache at all:
 what ships must not depend on what a cache held. Their toolchains come in
 the builder image.
+
+**Which commit a pull-request run builds.** `cargo xtask images` builds
+the commit its checkout has at `HEAD`, with that commit's time as
+`SOURCE_DATE_EPOCH`. For a run on `main` that is the commit pushed. For a
+pull-request run it is, by the host's default, a merge of the pull
+request's head into its base that the host makes for the run, and not the
+head itself (general knowledge of GitHub Actions, not checked against a
+workflow, since none exists yet). The plan does not need it to be the
+head. `images` and `images-rebuild` of one run check out the same commit,
+so `repro` compares like with like, and the manifest's `commit` names what
+was built. A record of a pull-request run's bytes therefore names the run
+and the commit its manifest gives, which may be on no branch. Only the
+release boot needs a commit that is on `main`, and it takes a run on
+`main` (task 7, boot c).
 
 **What needs a native host.** One thing: the VZ boot of the stub
 unikernel's `aarch64-vz` form, on the MacBook. No hosted runner can run VZ
@@ -2176,9 +2303,9 @@ part:
 | `loop-contract` | In its design review | The contract on `main`, so task 10 can run | M1a builds the substance |
 | `alters-slot` | In implementation | Nothing here: this design alters no relationship | |
 | `loop-parallel` | Not yet filed | The queue records the repositories an item names. What is still open of M1 is recorded as an item that names this repository, tracked and not gated (a17) | M1a is outside the queue, attended, with the **Design review** entry as its gate |
-| `loop-native-lead` | Not yet filed | A native machine may lead an item from its first step, so the MacBook could lead work that rests on a VZ boot | The VZ boots are attended sessions that Jeff starts |
-| `loop-repository` | Queued, not designed | `wf`'s gates, branches, pull requests and checks in this repository, with `wf` reading its profile; a checkout of it and its toolchain on the native machines; the rule for what a private repository's work shows in the public queue. From then on each relay task is an item `wf` gates, and the first to complete is the relay half of P1's done-when (a26). The two tracked native gaps go on the queue's native-gap backlog | Each task is a pull request worked by hand (a17) |
-| The move to the loop repository | Not yet filed; P1's last item | The link of step 1 changes, once | Links to the contract point at the main repository |
+| `loop-native-lead` | Not yet filed | A native machine may lead an item from its first step, so the MacBook could lead work that rests on a VZ boot. For work in this repository, only once `loop-repository` has also landed, since that is what gives the native machines a checkout of it and its toolchain (a17) | The VZ boots are attended sessions that Jeff starts, until both items have landed |
+| `loop-repository` | Queued, not designed | `wf`'s gates, branches, pull requests and checks in this repository, with `wf` reading its profile; a checkout of it and its toolchain on the native machines; the rule for what a private repository's work shows in the public queue. From then on each relay task is an item `wf` gates. The first to complete shows that the one queue works across repositories: that is the wave-1 gate under `loop-contract`'s a22 as recommended (open), and P1's done-when asks for the same again after the move (its U9). Which relay item it is, if M1 is done by then, is a26. The two tracked native gaps go on the queue's native-gap backlog | Each task is a pull request worked by hand (a17) |
+| The move to the loop repository | Not yet filed; P1's last item | The link of step 1 changes, once. P1 is done when a relay item has completed from the queue there (`loop-contract`'s U9) | Links to the contract point at the main repository |
 
 What each of those items does is its own design's to settle. The third
 column is this design's reading of the `loop-contract` design's hand-off
@@ -2194,14 +2321,17 @@ draft and from this design as first drafted:
   desktop; the host table has `qemu-any` on the MacBook, and the table
   wins. Work that any capable machine can do goes to whichever capable
   worker next takes steps, under a lease that can be renewed (part b of
-  that question, as Jeff answered it; the mechanism arrives with a later
-  P1 item). M1's one native need is `macos-vz`.
+  that question, as Jeff answered it; which later P1 item changes
+  FLOW-04 and the host table to match is its a24, open, with
+  `loop-native-lead` recommended). M1's one native need is `macos-vz`.
 - *Reconciliation.* Moving the `[conformance]` pin to a new specifications
   release, or the fork pins to a new Hermit tag, is what the contract
   calls a reconciliation item ("adopt X at version Y"). Once the queue
   holds this repository's work, each is a feature item that FLOW-05 ranks
-  with the fixes (`loop-contract`'s a5, as Jeff answered it). Task 12
-  sets the first pin by hand.
+  with the fixes (`loop-contract`'s a5, as Jeff answered it; which later
+  P1 item makes FLOW-05 say so is its a23, open, with `loop-parallel`
+  recommended). Task 12 sets the first pin by hand, unless it is the
+  item held for the wave-1 gate (a26, option C).
 
 **What waits for S1**, and is not adoption:
 
@@ -2500,8 +2630,10 @@ published manifest. For M1b: the README and `AGENTS.md` link to the Loop
 Contract, the profile, the rules and the design template are in its form,
 and the consumables are declared (LOOP-08's steps as merged); the
 conformance pin is set and the dispatch run against the Go relay's image
-has passed. A relay item completing through `wf`'s gates is P1's
-done-when, not M1's (a26).
+has passed. A relay item completing through `wf`'s gates is not part of
+M1's done-when (a26). It is what `loop-repository` is to show, which is
+the wave-1 gate under `loop-contract`'s a22 as recommended (open), and
+what P1's done-when asks for again after the move.
 
 **Not validated by M1, and said so:** that the reproducibility method holds
 for a real relay with a TLS stack and an async runtime (M2 and M3 find
@@ -2561,7 +2693,14 @@ each task still open is an item `wf` gates.
 3. **The kernel fork's commit** (in `buildwarden/hermit-kernel`, a pull
    request to `bw/v0.13.2`; D12): `src/fs/mod.rs`, `Cargo.toml`,
    `Cargo.lock` and `CARRIED.md`. Jeff merges and tags `v0.13.2-bw.2`
-   (a10). Rules: GLOBAL-05, GLOBAL-06, FLOW-08; the umbrella's Decision 15.
+   (a10). The fork is the second repository this design works in, and it
+   has not adopted the contract; the session is bound there as a17 says:
+   it pushes its task branch and nothing else, never `bw/v0.13.2`, a tag
+   or a force-push; it records in the pull request that the fork carries
+   no `entire/` ref before and after its push; and after the merge Jeff
+   deletes the task branch by hand, since the fork keeps head branches.
+   Rules: GLOBAL-05, GLOBAL-06, FLOW-08, FLOW-16, FLOW-17, FLOW-18; the
+   umbrella's Decision 15.
 4. **The builder image** (after 2). `images/builder/Containerfile` and
    `builder.yml`. After the merge the workflow pushes the image and prints
    its digest. Rules: GLOBAL-05, GLOBAL-06.
@@ -2588,7 +2727,9 @@ each task still open is an item `wf` gates.
    named run of the `images` job uploaded, checks the two files against
    that run's manifest, boots `hermit-loader-aarch64-vz.Image` with
    `relay-hermit-aarch64` using the spike's `vzrun`, and records the
-   console log with the commit, the run and the SHA-256 of both files.
+   console log with the run, the commit that run built (its manifest's
+   `commit`; for a pull-request run see **CI**) and the SHA-256 of both
+   files.
    The MacBook builds nothing: only a linux/amd64 build is canonical.
    There are three boots, because each commit builds different bytes for
    this form (a13):
@@ -2599,10 +2740,13 @@ each task still open is an item `wf` gates.
      `-bw.2` kernel boot as a pair, and a failure found here is a return
      to this design before the repository goes public. Its log goes into
      task 5's pull request, or into task 8's if task 5 has merged.
-   - *(b) Task 6's build*, from the `images` run on task 6's pull
-     request head, where the loader is built with `1.97.1`. It blocks
+   - *(b) Task 6's build*, from the latest `images` run of task 6's
+     pull request, where the loader is built with `1.97.1`. It blocks
      task 6's merge and nothing else. Its log goes into that pull
-     request.
+     request. A later push that changes what the loader or the
+     application is built from makes the boot stale, and it is repeated.
+     The push that records the result in this design does not: it
+     changes the build time in the bytes and nothing the boot tested.
    - *(c) The release build*, from the `images` run on `main` at the
      commit that will be tagged, which is at or after task 9's merge. It
      blocks the `v0.0.1` tag and nothing else. Its log and the two hashes
@@ -2643,15 +2787,21 @@ each task still open is an item `wf` gates.
     done-when (a26), and not a pull request here until its last part. It
     is listed so that what a17 defers has a place.
     - *When `loop-parallel` has landed:* what is still open of M1 is
-      filed, at intake with Jeff, as an item that names this repository,
-      tracked and not gated. If M1 is done by then, there is nothing to
-      file.
+      filed, at intake with Jeff, as an item that names the repositories
+      it still works in: this one, and `buildwarden/hermit-kernel` if
+      task 3 is still open. It is tracked and not gated. If M1 is done
+      by then, there is nothing to file.
     - *When `loop-repository` has landed:* whatever its design asks of a
       second repository is added here; the two tracked native gaps are
-      filed on the queue's native-gap backlog; and the relay work that is
-      next at that time (task 10 or 12 if either is still open, otherwise
-      M2's first item) is the first item `wf` gates here. Its completion
-      is the relay half of P1's done-when.
+      filed on the queue's native-gap backlog; and one relay item is
+      taken through `wf`'s gates here, the first. It is task 10 or task
+      12 if either is still open. If both are done, it is a small relay
+      item filed at intake with Jeff for the purpose (a26), and not M2's
+      first item: under `loop-contract`'s a22 as recommended, M2 waits
+      for this item to complete. Its completion shows that the one queue
+      works across repositories, which is the wave-1 gate under that
+      option; P1's done-when asks for a relay item again after the move
+      (its U9), and that one can be M2's.
 
     Rules: the contract's rules for an item and its repositories, as
     merged; TEST-03.
@@ -2780,6 +2930,16 @@ restated; the Go relay retired; then, and not before, anything raised with
 - **No tool enforces the order of work** until `wf` can gate work in this
   repository (a17). The design review entry and the task preconditions
   are kept by the sessions that do the work and by Jeff's merges.
+- **The wave-1 gate may want a relay item after M1 has none left.** Under
+  a26's recommended option M1 can be done before `loop-repository` lands,
+  and under `loop-contract`'s a22 as recommended M2 waits for a relay
+  item to complete from the one queue. A small item is then filed for
+  the purpose (a26, task 11). Both questions are open.
+- **The kernel fork has no guard.** Task 3's session works in a public
+  repository with no session-recording configuration, no branch
+  protection and no deletion on merge. The four rules are held there by
+  the session and by Jeff's merge, and whether that session is recorded
+  at all was not determined (a17).
 - **Nothing but the rule keeps `main` while the repository is private.**
   Its host offers no branch protection on the current plan, so FLOW-08
   and FLOW-17 are held by the sessions' settings until the visibility
