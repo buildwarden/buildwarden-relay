@@ -25,12 +25,12 @@ rules: [GLOBAL-01, GLOBAL-02, GLOBAL-03, GLOBAL-04, GLOBAL-05, GLOBAL-06, GLOBAL
         GLOBAL-09, GLOBAL-10, GLOBAL-11, RELAY-01, RELAY-02, RELAY-03, RELAY-04, RELAY-05,
         RELAY-06, RELAY-07, RELAY-08, BOOT-06, TEST-01, TEST-02, TEST-03, TEST-04, TEST-05,
         TEST-06, TEST-07, TEST-08, FLOW-03, FLOW-05, FLOW-06, FLOW-07, FLOW-08, FLOW-09,
-        FLOW-14, FLOW-16, FLOW-17, FLOW-18, FLOW-19, FLOW-20, LINT-01, LOOP-01, LOOP-03,
-        LOOP-04, LOOP-05, LOOP-07, LOOP-08, LOOP-09]
+        FLOW-14, FLOW-16, FLOW-17, FLOW-18, FLOW-19, FLOW-20, LINT-01, LOOP-01, LOOP-02,
+        LOOP-03, LOOP-04, LOOP-05, LOOP-07, LOOP-08, LOOP-09]
                          # rule IDs are the main repository's (docs/development/ at ad4ea50;
                          # between b903f65, where this design first read them, and ad4ea50
                          # only FLOW-01, FLOW-03 and FLOW-14 changed). The LOOP rules are
-                         # the Loop Contract's, on `main` there since ad4ea50; the seven
+                         # the Loop Contract's, on `main` there since ad4ea50; the eight
                          # listed are the ones this design relies on
 rule_changes: []         # this repository has no rules to change, and a feature's design may
                          # not declare a change to a loop rule; see "Rules mirrored", a24, a25
@@ -83,9 +83,11 @@ there since `loop-contract` merged on 2026-11-15 (`ad4ea50`, pull
 request 119). "Kickoff" is the document *BuildWarden Relay
 Unikernel - Fork Kickoff* (2026-11-07), "decisions table" is *Relay Fork -
 Decisions for Jeff* (2026-11-07), and "Loop Contract draft" is *BuildWarden
-Loop Contract* (draft, 2026-11-07). None of the three is in a repository yet;
-the umbrella says P1 and M1 give them homes. The Loop Contract's home is
-P1's work. Where the kickoff and the decisions table go is a21. "The change
+Loop Contract* (draft, 2026-11-07). None of the three documents is in a
+repository; the umbrella says P1 and M1 give them homes. P1 has given the
+contract its home: the main repository's `docs/development/` since
+`ad4ea50`, and the loop repository after P1's last item. Where the
+kickoff and the decisions table go is a21. "The change
 proposal" is the proposal for one queue that Jeff took as the direction on
 2026-11-14; the second entry of the `loop-contract` design's **Design
 review** section records it and his answer.
@@ -500,7 +502,8 @@ and revised by 2026-11-13 (`13ce286`). This revision was made on
    on 2026-11-14, and both repositories' settings as read that day.
 4. **It takes up a reviewer's findings on the revision itself.** P1's
    done-when and the wave-1 gate are stated as the `loop-contract` design
-   now has them, with its a22 open (Problem, a26, **The Loop Contract
+   now has them, with its a22 open at that date (answered since; see the
+   update of 2026-11-15 below) (Problem, a26, **The Loop Contract
    adopted**, task 11). a26 says which relay item passes that gate if M1
    is done first. The kernel fork is named as a second repository M1
    works in, with the four rules that bind a session there (a10, a17,
@@ -535,9 +538,9 @@ else:
    matter's comments, the introduction, Problem, the P1 entry and the
    umbrella's sentences on queues in **Prior art**, D15, a11, a16, a17,
    a26, **Rules mirrored**, Risks). The front matter's `rules` gains the
-   seven LOOP rules this design relies on: LOOP-01, LOOP-03, LOOP-04,
-   LOOP-05, LOOP-07, LOOP-08 and LOOP-09. The states of P1's later items
-   are as read from the queue on 2026-11-15.
+   eight LOOP rules this design relies on: LOOP-01, LOOP-02, LOOP-03,
+   LOOP-04, LOOP-05, LOOP-07, LOOP-08 and LOOP-09. The states of P1's
+   later items are as read from the queue on 2026-11-15.
 2. **It records that `loop-contract`'s a22, a23 and a24 were answered as
    recommended**, and what that settles here. a22: the wave-1 gate is the
    one queue working across repositories, not the move. So M2 waits for
@@ -566,6 +569,22 @@ else:
 
 No question is added or retired, and no recommended option changes. a11,
 a16, a17 and a26 are reworded for the merge.
+
+A reviewer then read the update, the same day, and its six findings are
+taken. Each is a place the update had left in the draft's words or as of
+the day before: the quotation in **Rules mirrored**'s first paragraph is
+LOOP-08's step 3 as merged, where it had the Loop Contract draft's
+wording under the contract's name; the last sentence of **What is
+high-severity under GLOBAL-06 here** names the profile's Checks and
+Boundary rule entries, where it had "process invariants", a term the
+merged contract does not have; a11's option B and D14's rejected
+alternative say that the contract has merged, as a16's option C already
+did; point 4 of the 2026-11-14 revision says that a22 was open at that
+date; `rules` gains LOOP-02, cited for the template's **Specification
+changes** section and for why this design has none (**The Loop Contract
+adopted**, step 4), which makes eight LOOP rules where point 1 above
+first said seven; and the introduction says where the contract now is.
+No option, recommendation or task changes.
 
 ## Decisions
 
@@ -729,8 +748,9 @@ Cited elsewhere in this design as D1 to D15.
     only once every commit that would be published has been scanned and
     Jeff has ruled on what the scan and a15 show. *Rejected:* flipping
     first: the first thing a visitor would see is a template README and a
-    spike. *Rejected:* waiting for the Loop Contract or
-    for S1: neither changes what is in this repository's history.
+    spike. *Rejected:* waiting for the Loop Contract (merged
+    on 2026-11-15) or for S1: neither changes what is in this
+    repository's history.
 
 15. **M1 runs in two parts.** M1a is everything that depends on nothing
     outside this repository and the forks. M1b is what waited for another
@@ -887,7 +907,8 @@ update of 2026-11-15:
   `flow18` workflow whose `sessions-private` job fails if the settings name
   another remote or if this repository carries any `entire/` ref (FLOW-18).
   Options: (A) as stated; (B) nothing until the Loop Contract says what a
-  component repository must carry. *Proceeding with A.* The check matters
+  component repository must carry (it does since 2026-11-15: LOOP-08,
+  step 6, below). *Proceeding with A.* The check matters
   most at the moment the repository becomes public. On 2026-11-13 the
   remote carries no `entire/` ref. The contract asks the same of a
   component (LOOP-08, step 6: "recording sessions only to the private
@@ -1815,8 +1836,8 @@ same four rules bind the session there, and a17 says how each is held;
 of the invariants below, GLOBAL-05 and GLOBAL-06 apply to that commit,
 and the fork's own checks and its `CARRIED.md` are what it is held to
 otherwise (the umbrella's Decision 15). `docs/invariants.md` holds
-the same table with job names, and the two tracked native gaps, so the
-contract's "declare the component's safety invariants" has something to
+the same table with job names, and the two tracked native gaps, so
+LOOP-08's step 3 ("its safety invariants among them") has something to
 point at. In M1a it is a plain table. The contract asks for a component's
 invariants as rules in LINT-01's format, under a prefix the component
 names in its own profile (LOOP-08, step 3; `loop-contract`'s a16); that
@@ -1864,8 +1885,10 @@ it: the lint tables in `Cargo.toml`, `clippy.toml`, `deny.toml`,
 `pins.toml`, `xtask/`, `images/`, `.github/workflows/`, and any commit
 carried on a Hermit fork. A pull request that touches any of them fills the
 template's Security note: what boundary or guard it touches and how the
-posture changes. M1 has no automated check for that; the Loop Contract's
-process invariants are where one belongs.
+posture changes. M1 has no automated check for that. One would be
+the relay's own check, declared in its profile's Checks entry (LOOP-03:
+"The concrete checks are local"); the rule it would serve is the
+profile's Boundary rule entry (LOOP-01).
 
 ### CI
 
