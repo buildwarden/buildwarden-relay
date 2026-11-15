@@ -25,10 +25,13 @@ rules: [GLOBAL-01, GLOBAL-02, GLOBAL-03, GLOBAL-04, GLOBAL-05, GLOBAL-06, GLOBAL
         GLOBAL-09, GLOBAL-10, GLOBAL-11, RELAY-01, RELAY-02, RELAY-03, RELAY-04, RELAY-05,
         RELAY-06, RELAY-07, RELAY-08, BOOT-06, TEST-01, TEST-02, TEST-03, TEST-04, TEST-05,
         TEST-06, TEST-07, TEST-08, FLOW-03, FLOW-05, FLOW-06, FLOW-07, FLOW-08, FLOW-09,
-        FLOW-14, FLOW-16, FLOW-17, FLOW-18, FLOW-19, FLOW-20, LINT-01]
-                         # rule IDs are the main repository's (docs/development/ at b903f65).
-                         # LOOP-01 to LOOP-09 are cited in the text as the loop-contract
-                         # design proposes them; they are not on `main` and not listed here
+        FLOW-14, FLOW-16, FLOW-17, FLOW-18, FLOW-19, FLOW-20, LINT-01, LOOP-01, LOOP-03,
+        LOOP-04, LOOP-05, LOOP-07, LOOP-08, LOOP-09]
+                         # rule IDs are the main repository's (docs/development/ at ad4ea50;
+                         # between b903f65, where this design first read them, and ad4ea50
+                         # only FLOW-01, FLOW-03 and FLOW-14 changed). The LOOP rules are
+                         # the Loop Contract's, on `main` there since ad4ea50; the seven
+                         # listed are the ones this design relies on
 rule_changes: []         # this repository has no rules to change, and a feature's design may
                          # not declare a change to a loop rule; see "Rules mirrored", a24, a25
 concepts: [relay-split, relay-release-forms, relay-workspace, relay-lints, relay-ci,
@@ -43,7 +46,8 @@ related:
 This is the design of milestone M1 of the relay track (track R) of the
 componentization program. The umbrella design,
 [`componentization.md`](https://github.com/buildwarden/buildwarden/blob/main/docs/design/componentization.md)
-(main repository, merged as `b903f65`), fixes what M1 is:
+(main repository, merged as `b903f65` and amended in place by
+`loop-contract` at `ad4ea50`), fixes what M1 is:
 
 > M1: Workspace, lints, CI, the Loop Contract adopted, reproducible image
 > tooling. The repository goes public. The conformance harness comes from S1.
@@ -62,16 +66,21 @@ adopted the Loop Contract, and a17 says which rules bind in each.
 
 It was revised on 2026-11-14, before its review, for what Jeff settled that
 day about the loop (one queue) and the driver contract, and for an
-independent reader's concerns. **Revised on 2026-11-14, before review**,
-at the end of **Prior art**, says what changed. Nothing in it is approved.
+independent reader's concerns. It was updated on 2026-11-15, still before
+its review, for the Loop Contract as merged that day. **Revised on
+2026-11-14, before review**, at the end of **Prior art**, says what each
+changed. Nothing in it is approved.
 
 Rule IDs (`GLOBAL-06`, `RELAY-03`, `FLOW-18`, ...) are the main repository's,
-in its `docs/development/` at `b903f65`. "Decision N" is always the
+in its `docs/development/` at `ad4ea50`. This design first read them at
+`b903f65`; between the two commits only FLOW-01, FLOW-03 and FLOW-14
+changed, as `loop-contract` amended them. "Decision N" is always the
 umbrella's Decision N; this design's own decisions are D1 to D15. Its
 assumptions are a1 to a28; the umbrella's and other designs' are named as
 such ("the umbrella's a11", "`loop-contract`'s a18"). LOOP-01 to LOOP-09
-are the rules the `loop-contract` design proposes; they are not on `main`
-yet. "Kickoff" is the document *BuildWarden Relay
+are the Loop Contract's rules, in `docs/development/loop-contract.md`
+there since `loop-contract` merged on 2026-11-15 (`ad4ea50`, pull
+request 119). "Kickoff" is the document *BuildWarden Relay
 Unikernel - Fork Kickoff* (2026-11-07), "decisions table" is *Relay Fork -
 Decisions for Jeff* (2026-11-07), and "Loop Contract draft" is *BuildWarden
 Loop Contract* (draft, 2026-11-07). None of the three is in a repository yet;
@@ -108,17 +117,18 @@ relay code is written:
    first line of relay code.
 3. **Two other program phases expect this repository to be ready.** S1's
    harness (item `seam-specs`) will run against a relay binary or image and
-   says that wiring is M1's. P1 is done, in the umbrella as merged, when
-   "this repository's loop and the relay's loop each complete one item from
-   the loop repository". Since 2026-11-14 there is one loop and one queue,
-   and the `loop-contract` design proposes that sentence as "One item in
-   this repository and one item in the relay repository each complete from
-   the one queue in the loop repository" (its amendment U9, with its a18
-   to a20), which is after the loop has moved. The same thing is asked
-   once before the move, when `loop-repository` lets `wf` gate work here:
-   that is the wave-1 gate under its a22 as recommended, which is open.
-   Either way a relay item has to be workable by the loop, and the
-   repository has to be one the loop can work in.
+   says that wiring is M1's. The umbrella as approved on 2026-11-12 had
+   P1 done when "this repository's loop and the relay's loop each
+   complete one item from the loop repository". Since 2026-11-14 there is
+   one loop and one queue, and the umbrella as `loop-contract` amended it
+   has "One item in this repository and one item in the relay repository
+   each complete from the one queue in the loop repository" (that
+   design's amendment U9, with its a18 to a20), which is after the loop
+   has moved. The same thing is asked once before the move, when
+   `loop-repository` lets `wf` gate work here: that is the wave-1 gate,
+   "The one queue works across repositories" (its U12, and its a22 as
+   Jeff answered it). Both times a relay item has to be workable by the
+   loop, and the repository has to be one the loop can work in.
 4. **The repository goes public at M1** (Decision 16), so what is in it, in
    every commit on every ref, has to be fit to publish.
 
@@ -126,7 +136,8 @@ What M1 does not do is build a relay. `relay-core` starts in M2.
 
 ## Prior art
 
-**In the main repository** (`buildwarden/buildwarden` at `b903f65`):
+**In the main repository** (`buildwarden/buildwarden` at `b903f65`, and
+at `ad4ea50` for the Loop Contract and what merged with it):
 
 - [`componentization.md`](https://github.com/buildwarden/buildwarden/blob/main/docs/design/componentization.md).
   Binding here: Decision 9 (truststore generation moves into the relay; that
@@ -180,62 +191,70 @@ What M1 does not do is build a relay. `relay-core` starts in M2.
   the main repository (its a4, and **How the loop treats the second
   repository**). **Conformance** below is written against that design and
   says what changes if it changes.
-- The P1 design: `docs/design/loop-contract.md` on branch
-  `feat/loop-contract`, read on 2026-11-14 at `7af50ff`. It is in its design
-  review. Jeff stopped the first sitting, settled the direction the same
-  day (one queue, items that do not collide side by side, items a native
-  machine leads), and at a second sitting answered twenty of its
-  questions. Three of his answers departed from the recommended option
-  (its a5, part b of its a15, and its a19) and are folded in. Three
-  questions those answers raised are open: its a22 (what the wave-1 gate
-  waits for), and its a23 and a24 (which later item makes the rule on
-  reconciliation items, and the rule on work any capable machine can do,
-  true). It is still being edited, so it is cited here by question ID, as
-  answered or as open, and its rule wording is not quoted as final. It
-  turns Jeff's Loop Contract draft into nine rules, LOOP-01 to LOOP-09, in
-  `docs/development/loop-contract.md` of the main repository. What this
-  design takes from it:
-  - *One queue* (its a18). There is one queue, the one on the main
+- The P1 design: `docs/design/loop-contract.md`, archived on the main
+  repository's `main`. Jeff approved it on 2026-11-14 at `7af50ff`, and it
+  merged on 2026-11-15 as `ad4ea50` (pull request 119). He stopped the
+  first sitting, settled the direction the same day (one queue, items
+  that do not collide side by side, items a native machine leads), and at
+  a second sitting answered every question. Three of his answers departed
+  from the recommended option (its a5, part b of its a15, and its a19)
+  and are folded in. The three questions those answers raised were each
+  confirmed as recommended: its a22 (wave 2 waits for the one queue
+  working across repositories, and not for the move), its a23
+  (`loop-parallel` makes the rule on a reconciliation item's rank true)
+  and its a24 (`loop-native-lead` makes the rule on work any capable
+  machine can do true). It turned Jeff's Loop Contract draft into nine
+  rules, LOOP-01 to LOOP-09, in `docs/development/loop-contract.md` of
+  the main repository, and wrote that repository's profile beside it
+  (`loop-profile.md`, PROFILE-01). The contract's text is final: it is
+  cited here by rule ID and quoted from `main`, and the design's
+  reasoning is cited by question ID. What this design takes from them:
+  - *One queue* (LOOP-04; its a18). There is one queue, the one on the main
     repository's `workflow` branch, for work in every repository. An item
     names the repositories it works in, in its design until the queue has
     a field for them. A component is a repository that has adopted the
     contract, and it has no queue of its own.
-  - *Adoption* (LOOP-08 as proposed, six steps): a link to the contract; a
+  - *Adoption* (LOOP-08, six steps, quoted under **The Loop Contract
+    adopted**): a link to the contract; a
     profile; the repository's invariants as rules in LINT-01's format under
     a prefix the component names in its own profile (its a16; no prefix is
     registered in the contract); a design template; the consumables
     declared; and the repository set up as FLOW-08, FLOW-16 and FLOW-18
     need, with the trunk protected where the host offers that (its a21).
     The steps need nothing from P1's later items.
-  - *A repository that has not adopted* (its a17). An item may work in
+  - *A repository that has not adopted* (LOOP-08; its a17). An item may work in
     one. The worker is bound there by FLOW-08, FLOW-16, FLOW-17 and
     FLOW-18, and the item's design says which invariants apply, by rule
     ID. `seam-specs` works in the specs repository that way.
-  - *Who changes which rule* (its a10). A loop rule (LOOP, FLOW, LINT)
+  - *Who changes which rule* (LOOP-09, and FLOW-14 as amended; its a10).
+    A loop rule (LOOP, FLOW, LINT)
     changes only through a process item. A feature's design may change
     the invariants and the profile of a component it works in, and may
     not declare a change to a loop rule.
-  - *P1's items, in order:* `loop-contract` (the rules); `alters-slot`
-    (in implementation: `wf` counts items that alter relationships against
+  - *P1's items, in order:* `loop-contract` (the rules; merged);
+    `alters-slot` (merged before it, as `897a4a8`, pull request 118: `wf`
+    counts the items that hold an `alters_relationships` slot against
     the configured limit of 3); `loop-parallel` (items that do not collide
     run side by side, and the queue records the repositories an item
     names); `loop-native-lead` (a native machine may lead an item from its
     first step); `loop-repository` (`wf`'s gates, branches, pull requests
     and checks in a second repository); and last, the move of the loop to
     its own repository, which the umbrella's Decision 13 names (its a19).
-    `loop-repository` is queued and not yet designed; `loop-parallel`,
-    `loop-native-lead` and the move are not yet filed.
+    Read from the queue on 2026-11-15: `loop-parallel` is in its design
+    review; `loop-native-lead` and `loop-repository` are queued and not
+    yet designed; the move is not yet filed.
   - *What P1 is done at, and what wave 2 waits for.* P1 is done when the
     loop has moved and an item in each repository has completed from the
     queue in the loop repository (its U9). Before the move,
     `loop-repository` delivers the same thing from the queue where it is
     now: an item in the main repository and an item in this repository
-    each complete from the one queue. Under its a22 as recommended (open)
-    that earlier point is the wave-1 gate, which M2 waits for; under
-    a22's second option the gate is the move.
+    each complete from the one queue. That earlier point is the wave-1
+    gate, which M2 waits for (its U12; its a22, answered as recommended).
+    The move is not the gate, and runs beside wave 2.
 
-  **The Loop Contract adopted** below is written against that, with the
-  same caveat as for S1's.
+  **The Loop Contract adopted** below is written against the contract as
+  merged. What it says each later P1 item brings is still a reading of
+  designs that are not written or not approved.
 - The K1 design: `docs/design/driver-contract.md` on branch
   `feat/driver-contract`, read on 2026-11-14 at `0c29fc3`. Jeff sent its
   first draft back, and this is the redraft, waiting for his review; its
@@ -432,13 +451,24 @@ settled here. Each is a question for Jeff:
 | M1 includes "the Loop Contract adopted", and P1 is done when "the relay's loop" completes an item | With one queue, adoption no longer includes a queue. Whether M1 is done at adoption, or only when a relay item has completed from the one queue, which waits for `loop-repository`; and, if at adoption, which relay item then passes the wave-1 gate | a26 |
 
 **The umbrella's sentences on queues.** Where this design quotes the
-umbrella it quotes the text merged at `b903f65`. One queue changes its
-Decision 2, the sentence on the relay's queue, track R's heading, P1's row
-and the wave-1 gate. The `loop-contract` design lists the amendments for
-Jeff's approval by name (its a20), to be made in its pull request. The
-`driver-contract` design does the same for Decisions 4 and 5, seams 1, 6
-and 9 and the K1, K2 and S4 rows (its a18). Neither set is made yet, and
-this design proposes none of its own.
+umbrella on queues, in the table above and in a17 and a26, it quotes the
+text approved on 2026-11-12 and merged at `b903f65`. One queue changed
+its Decision 2, the sentence on the relay's queue, track R's heading,
+P1's row and the wave-1 gate. The `loop-contract` design listed the
+amendments, Jeff approved them by name (its a20), and its pull request
+made them in place (`ad4ea50`); the umbrella's own **Amendments** section
+lists them. As amended, the umbrella has one queue; P1 is done when "One
+item in this repository and one item in the relay repository each
+complete from the one queue in the loop repository"; the wave-1 gate is
+"The one queue works across repositories; suites pass on the Go relay";
+and, until P1 makes the queue work across repositories, "the relay's
+milestones are worked outside the queue". So the two rows above that
+lead to a17 and a26 each quote a sentence the umbrella no longer has.
+What is left of each question is this design's own: how M1a is worked
+while it is outside the queue (a17), and what M1 is done at (a26). The
+`driver-contract` design lists amendments for Decisions 4 and 5, seams
+1, 6 and 9 and the K1, K2 and S4 rows (its a18). That set is not made
+yet, and this design proposes none of its own.
 
 ### Revised on 2026-11-14, before review
 
@@ -491,6 +521,51 @@ concern; a20's names (the manifest says `oci-image`, where it said
 table had four), with a concern; and a24 (no promise of a security suite
 by M2's release, where the draft said that release "may not ship without
 the suite"), with a concern.
+
+**Updated on 2026-11-15, still before review.** `loop-contract` merged
+in the main repository that day (`ad4ea50`, pull request 119), after
+`alters-slot` (`897a4a8`, pull request 118). The Loop Contract's text is
+final and is on `main` there. This update does four things and nothing
+else:
+
+1. **It cites the contract as merged.** Where the text cited the P1
+   design by branch or commit, called the contract proposed or unmerged,
+   or said the umbrella's amendments were still to be made, it now cites
+   LOOP-01 to LOOP-09 on `main` and the umbrella as amended (the front
+   matter's comments, the introduction, Problem, the P1 entry and the
+   umbrella's sentences on queues in **Prior art**, D15, a11, a16, a17,
+   a26, **Rules mirrored**, Risks). The front matter's `rules` gains the
+   seven LOOP rules this design relies on: LOOP-01, LOOP-03, LOOP-04,
+   LOOP-05, LOOP-07, LOOP-08 and LOOP-09. The states of P1's later items
+   are as read from the queue on 2026-11-15.
+2. **It records that `loop-contract`'s a22, a23 and a24 were answered as
+   recommended**, and what that settles here. a22: the wave-1 gate is the
+   one queue working across repositories, not the move. So M2 waits for
+   a relay item that `wf` has gated, M2's first item cannot be that item,
+   and a26 names which is: task 10 or task 12 if either is still open
+   when `loop-repository` lands, otherwise a small item filed for the
+   purpose (a26, task 11, **Done when**, Risks). a26 itself is still
+   open. a23 and a24: a reconciliation item's rank and the rule for work
+   any capable machine can do are decided, and `loop-parallel` and
+   `loop-native-lead` make them true; nothing in M1 waits for either
+   (**The Loop Contract adopted**).
+3. **It sets The Loop Contract adopted and task 10 against the merged
+   text.** LOOP-08's six steps are quoted. LOOP-01's nineteen profile
+   terms each have a row. Seven were not named before; four of those
+   follow from what the design already said, and three (Reference
+   documents, Sweep, Rule and machinery paths) are starting points for
+   task 10. Three things the merged text adds are stated: the profile is
+   itself a rule under a prefix the relay owns (LOOP-01); that prefix is
+   none of the twelve the loop and the main repository's profile name
+   (LOOP-08); and the judgment of the prefix and the profile is a design
+   review's, which task 10 records under **Design review** (the agent
+   parts of LOOP-01 and LOOP-08).
+4. **It says what M1b now waits for.** Task 10 waits for no other item
+   and follows M1a; task 12 still waits for S1's first release (D15,
+   task 10).
+
+No question is added or retired, and no recommended option changes. a11,
+a16, a17 and a26 are reworded for the merge.
 
 ## Decisions
 
@@ -658,10 +733,13 @@ Cited elsewhere in this design as D1 to D15.
     for S1: neither changes what is in this repository's history.
 
 15. **M1 runs in two parts.** M1a is everything that depends on nothing
-    outside this repository and the forks. M1b is what waits for another
-    item: adoption in the Loop Contract's form, which waits for
-    `loop-contract` to merge, and the conformance pin, which waits for
-    S1's first release. M1 is done when both are (a26). This repository
+    outside this repository and the forks. M1b is what waited for another
+    item when M1 was split: adoption in the Loop Contract's form, which
+    waited for `loop-contract` to merge, and the conformance pin, which
+    waits for S1's first release. `loop-contract` merged on 2026-11-15,
+    so adoption (task 10) now waits for no other item: it follows M1a,
+    whose files its profile names, and stays in M1b as numbered. M1 is
+    done when both parts are (a26). This repository
     gets no queue in either part: its work becomes items in the one queue
     when P1's later items let the queue hold them, and that is P1's work,
     not M1's (a17, a26). M1a waits for no other program item, but it does
@@ -705,12 +783,13 @@ the design review; the visibility change itself is his act in any case
 "Proceeding with X; confirm." Each is confirmed or changed in the design
 review (FLOW-19).
 
-Against the text at `13ce286`, after the revision of 2026-11-14:
+Against the text at `13ce286`, after the revision of 2026-11-14 and the
+update of 2026-11-15:
 
 | | Questions |
 |---|---|
 | Unchanged | a1 to a9, a12, a14, a18, a19, a22, a23 |
-| A sentence added | a11 (the contract as proposed asks the same) |
+| A sentence added | a11 (the contract asks the same) |
 | Reworded | a10 ("the session" where it had "the loop"; the fork as a second repository M1 works in), a13 (when the tag is pushed; its first and third acceptances), a15 (the branch deletion and the umbrella's pointer now point to a25 and a28), a16 (the order, and the two settings as read), a17 (one queue: rewritten; the kernel fork; what a private repository's work shows in the public queue), a20 (K1's redraft; a second part on names), a21 (one clause on the Loop Contract's home) |
 | New | a24 (the relay's security-testing invariant, in place of a waiver of TEST-08), a25 (the unmerged spike branch and FLOW-16), a26 (M1 done at adoption, and which relay item then passes the wave-1 gate), a27 (no `host-binary` form in M1), a28 (the two follow-ups in the main repository) |
 | Retired | none |
@@ -810,10 +889,10 @@ Against the text at `13ce286`, after the revision of 2026-11-14:
   Options: (A) as stated; (B) nothing until the Loop Contract says what a
   component repository must carry. *Proceeding with A.* The check matters
   most at the moment the repository becomes public. On 2026-11-13 the
-  remote carries no `entire/` ref. The contract, as the `loop-contract`
-  design proposes it, asks the same of a component (LOOP-08, step 6), and
-  FLOW-18 is one of the four rules that bind a worker in a repository that
-  has not adopted (its a17).
+  remote carries no `entire/` ref. The contract asks the same of a
+  component (LOOP-08, step 6: "recording sessions only to the private
+  sessions repository (FLOW-18)"), and FLOW-18 is one of the four rules
+  that bind a worker in a repository that has not adopted (LOOP-08).
 - **a12. Code scanning is GitHub's default CodeQL setup, turned on when the
   repository is public, for Rust and for the workflows.** This session
   could not verify that default setup analyses Rust, nor how the main
@@ -925,19 +1004,24 @@ Against the text at `13ce286`, after the revision of 2026-11-14:
   sitting; task 9's release workflow merges in public; then the release
   boot and `v0.0.1`; (B) change the visibility first and build M1a in
   public, which shows a visitor a template README and a spike; (C) hold
-  the change until the Loop Contract or S1 has landed, which changes
+  the change until S1 has landed (the Loop Contract, which this option
+  also named, merged on 2026-11-15), which changes
   nothing about what is in this repository's history. *Proceeding with A*
   (D14). Two settings, as read with `gh api` on 2026-11-14:
   - *Trunk protection cannot be set before the change.* The host answers
     that protecting a branch of this repository needs a paid plan or a
     public repository. The contract asks a component to protect its trunk
-    where its host offers that, and lets this repository adopt while
-    private (`loop-contract`'s a21). So `main` is protected in the sitting
+    "where its host offers that" (LOOP-08, step 6), which lets this
+    repository adopt while private (`loop-contract`'s a21). So `main` is
+    protected in the sitting
     that changes the visibility, and until then FLOW-08 is held here by
     the rule and by the sessions' settings, with no repository setting
-    behind it. (The main repository's `main` has no protection today
-    either; Jeff protects it before `loop-contract`'s pull request
-    merges.)
+    behind it. (The main repository's `main` had no protection on
+    2026-11-14 either, and `loop-contract`'s review has Jeff protect it
+    before that item's pull request merges. The pull request merged on
+    2026-11-15. Read with `gh api` that day, after the merge, the host
+    reports the branch as not protected, with no ruleset. That is the
+    main repository's to settle, and nothing here depends on it.)
   - *Head branches are kept on merge.* Deleting them is a setting the host
     offers a private repository. Jeff turns it on before task 0's pull
     request merges, so that FLOW-16's cleanup needs no hand deletion while
@@ -948,10 +1032,13 @@ Against the text at `13ce286`, after the revision of 2026-11-14:
   the aarch64 legs of `test` and `smoke` are switched on by the first pull
   request after the change, and that is recorded with the checklist.
 - **a17. Until the one queue can hold work in this repository, M1a is
-  worked outside it.** The umbrella says "The relay's milestones run in
-  the relay repository's queue". Jeff's direction of 2026-11-14 replaces
+  worked outside it.** The umbrella said "The relay's milestones run in
+  the relay repository's queue". Jeff's direction of 2026-11-14 replaced
   that: there is one queue, on the main repository's `workflow` branch,
   and this repository never gets one of its own (`loop-contract`'s a18).
+  The umbrella as `loop-contract` amended it says that until P1 makes
+  the queue work across repositories "the relay's milestones are worked
+  outside the queue"; it does not say how, which is this question.
   An item in that queue may already work in a repository that has not
   adopted the contract (its a17), as `seam-specs` does in the specs
   repository. But that item's design, branch and gates are in the main
@@ -1058,7 +1145,7 @@ Against the text at `13ce286`, after the revision of 2026-11-14:
     work is written up as any other.
 
   Under B nothing in this repository starts before `loop-parallel`, which
-  is not yet filed. Under C the nine pull requests of M1a become one,
+  is in its design review. Under C the nine pull requests of M1a become one,
   which gives up merging the housekeeping, the workspace and the fork
   commit as each is ready.
 - **a18. Hosted-runner assumptions.** Proceeding on four, of which only
@@ -1264,24 +1351,31 @@ Against the text at `13ce286`, after the revision of 2026-11-14:
   The umbrella's M1 includes "the Loop Contract adopted". As drafted,
   this design also put into M1b "the relay's first item taken from the
   loop repository", which was the relay half of P1's done-when as the
-  umbrella has it. With one queue, adoption is LOOP-08's six steps as the
-  `loop-contract` design proposes them, and a repository's work being in
-  the queue is not one of them: that design puts it outside the six
-  steps, as what P1's later items owe. A relay item completing from the
-  one queue is now asked for twice there: once when `loop-repository`
-  lands, which is the wave-1 gate under its a22 as recommended (open),
-  and again after the move, which is P1's done-when (its U9). Options:
+  umbrella had it. With one queue, adoption is LOOP-08's six steps, and
+  a repository's work being in the queue is not one of them: the rule
+  says a component "gets no queue of its own: its work is items in the
+  one queue that name it", and the `loop-contract` design puts the
+  gating of those items here outside the six steps, as what P1's later
+  items owe. A relay item completing from the one queue is asked for
+  twice: once when `loop-repository` lands, which is the wave-1 gate
+  (the umbrella as amended; `loop-contract`'s a22, answered as
+  recommended), and again after the move, which is P1's done-when (its
+  U9). Options:
   (A) M1 is done when M1a is done, the six steps are done (task 10) and
   the conformance pin is set (task 12). The first relay item that `wf`
   gates is P1's to see completed, and M1 does not wait for it. A has a
-  cost the draft did not have. Wave 2 includes M2, and under
-  `loop-contract`'s a22 as recommended it waits for that relay item. If
+  cost the draft did not have. Wave 2 includes M2, and it waits for that
+  relay item: a22's answer settles that. If
   M1 is done before `loop-repository` lands, which is likely, since that
-  is P1's fifth item and two before it are not yet filed, then no M1
+  is P1's fifth item, it is not yet designed, and the two before it are
+  not yet approved, then no M1
   task is left to be the item, and M2's first item cannot be it, because
   it is waiting on the same gate. So under A the item is, in this
   order: task 10 or task 12, if either is still open then; otherwise a
   small relay item filed at intake with Jeff for the purpose (task 11).
+  Task 10 no longer waits for another item and follows M1a, so of the
+  two it is task 12, which waits for S1's first release, that may still
+  be open.
   Its content is whatever `loop-repository`'s design asks of this
   repository, if that is a change here, or else the next pin move, a
   reconciliation item. What it changes matters less than that it passes
@@ -1296,12 +1390,17 @@ Against the text at `13ce286`, after the revision of 2026-11-14:
   wiring goes unproven until `loop-repository` lands, which costs
   nothing while M2 cannot start, and M1 stays open as long as under B.
   *Proceeding with A.* When M2 may start is the umbrella's wave-1 gate,
-  not this design's, and what that gate is with one queue is
-  `loop-contract`'s a22, which is open. Under a22's second option the
-  gate is the move itself, M2's first item can then be the relay item
-  that P1's done-when asks for after the move, and the cost above arises
-  only if `loop-repository`'s own design wants a relay item to prove
-  itself on before then.
+  not this design's, and what that gate is with one queue was
+  `loop-contract`'s a22. Jeff answered it as recommended: wave 2 waits
+  for the one queue working across repositories, shown by an item in the
+  main repository and an item in this one each completing from it, and
+  not for the move. That settles two things here. The cost of A is
+  certain and not conditional: a relay item must pass `wf`'s gates
+  before M2 starts, M2's first item cannot be it, and it is one of the
+  three named above. And the relay item that P1's done-when asks for
+  after the move is a different one, which can be M2's. What a22's
+  answer does not settle is this question: whether M1 is done before
+  that item completes (A) or stays open for it (B, C).
 - **a27. Whether `v0.0.1` lists a `host-binary` form.** As drafted, the
   forms table had a fourth row, `host-binary`: `relay-linux-x86_64` and
   `relay-linux-aarch64` in `dist/`, the same binary the appliance and the
@@ -1707,10 +1806,10 @@ included, are outside what this file can allow or refuse (D5, a22).
 This repository has no rule files. Until it adopts the Loop Contract
 (task 10) and the umbrella's M6 moves RELAY-01 to RELAY-08, the main
 repository's rules apply by ID, and this table says which bind work here
-and how each is met. That is what the `loop-contract` design proposes for
-an item that works in a repository that has not adopted: the worker is
-bound by FLOW-08, FLOW-16, FLOW-17 and FLOW-18, and the item's design says
-which invariants apply, by rule ID (its a17). M1 works in a second such
+and how each is met. That is what LOOP-08 asks of an item that works in
+a repository that has not adopted: "There the worker is bound by FLOW-08,
+FLOW-16, FLOW-17 and FLOW-18, and the item's design says which invariants
+apply there, by rule ID" (`loop-contract`'s a17). M1 works in a second such
 repository, `buildwarden/hermit-kernel`, for task 3's one commit. The
 same four rules bind the session there, and a17 says how each is held;
 of the invariants below, GLOBAL-05 and GLOBAL-06 apply to that commit,
@@ -1720,7 +1819,8 @@ the same table with job names, and the two tracked native gaps, so the
 contract's "declare the component's safety invariants" has something to
 point at. In M1a it is a plain table. The contract asks for a component's
 invariants as rules in LINT-01's format, under a prefix the component
-names in its own profile (`loop-contract`'s a16); that form is M1b's
+names in its own profile (LOOP-08, step 3; `loop-contract`'s a16); that
+form is M1b's
 (**The Loop Contract adopted**). `rule_changes` is empty: nothing here
 changes a rule of the main repository, and a24 and a25 are where the plan
 meets one it cannot follow as written.
@@ -2245,14 +2345,14 @@ has on its branch, so that the umbrella's citation resolves on `main`.
 
 ### The Loop Contract adopted
 
-The contract this repository adopts is the one the `loop-contract` design
-finishes (**Prior art**): nine rules, LOOP-01 to LOOP-09, in
-`docs/development/loop-contract.md` on the main repository's `main`. It
-stays there until P1's last item moves the loop to its own repository.
-That design is in review and not merged, so none of it is on `main` yet:
-there is no contract to link to and no list of profile terms. This section
-is written against it as read on 2026-11-14 and against Jeff's answers to
-its questions, cited by ID. Its rule wording may still change.
+The contract this repository adopts is the Loop Contract as merged
+(**Prior art**): nine rules, LOOP-01 to LOOP-09, in
+[`docs/development/loop-contract.md`](https://github.com/buildwarden/buildwarden/blob/main/docs/development/loop-contract.md)
+on the main repository's `main`, since 2026-11-15 (`ad4ea50`). Its text
+is final. It stays there until P1's last item moves the loop to its own
+repository, and the link from this repository changes once, then. This
+section is written against the merged text, which it quotes, and against
+Jeff's answers to the `loop-contract` design's questions, cited by ID.
 
 Jeff's Loop Contract draft, section 8, asks four things of a component
 repository: link to the contract from the README and the loop
@@ -2260,21 +2360,90 @@ configuration; fill the local column of its section 1; declare the safety
 invariants; declare the consumables. Its section 3 names the relay's
 invariants: three crates and two architectures build;
 `forbid(unsafe_code)`, a dependency audit, and the no-filesystem and
-no-process lints hold. The `loop-contract` design turns that into rule
+no-process lints hold. The `loop-contract` design turned that into rule
 LOOP-08.
 
-**What adopting means here.** LOOP-08, as proposed, has six steps, and a
-repository that has done them is a component. The six need nothing from
-P1's later items. For this repository:
+**What adopting means here.** LOOP-08, as merged:
+
+> A repository becomes a component by:
+>
+> 1. linking to this contract from its README and its agent context file.
+>    The link is to the contract's trunk: never a copy, and never a pinned
+>    version;
+> 2. writing its profile (LOOP-01), every term filled or `none`;
+> 3. writing its invariants as rules in LINT-01's format, under prefixes
+>    it names in its profile, its safety invariants among them (LOOP-03);
+> 4. keeping designs with the front-matter and sections the detail names
+>    (FLOW-02, FLOW-12, FLOW-19), plus its own;
+> 5. declaring its consumables (LOOP-07), even when its first release is a
+>    stub;
+> 6. seeing that only a human merges to its trunk (FLOW-08), and
+>    protecting the trunk where its host offers that; deleting head
+>    branches on merge (FLOW-16); and recording sessions only to the
+>    private sessions repository (FLOW-18).
+>
+> It gets no queue of its own: its work is items in the one queue that
+> name it (LOOP-04).
+
+The six need nothing from P1's later items and, since the merge, nothing
+from `loop-contract` either. For this repository:
 
 | Step | Here | Needs | When |
 |---|---|---|---|
-| 1. A link, not a copy | `README.md` and a new agent context file, `AGENTS.md`, link to the contract on the main repository's `main`. The link follows the contract's trunk and is not pinned. It changes once, when P1's last item moves the contract to the loop repository | `loop-contract` merged, so that the target exists | M1b, task 10 |
-| 2. A profile | One document that fills every term the contract lists, or says `none`. For this repository: Rust and the three toolchains; `main` as trunk; where the rules and designs are; the prefix of its own rules (step 3); the seams it implements and how it pins a specifications release (`[conformance]`); the fast gate (`cargo fmt`, `clippy`, `test`, `xtask check-pins`, `lint-sources`); the checks by class and tier; the host names its native work uses, from the one host table (`macos-vz` in M1); `GLOBAL-06` as read in **Rules mirrored** as its boundary rule; the release workflow; its session-recording configuration; and step 5's declarations | `loop-contract` merged: the term list is the contract's | M1b, task 10 |
-| 3. Its invariants as rules | In LINT-01's format (an ID, a severity, a check), under a prefix this repository names in its own profile. No prefix is registered in the contract (`loop-contract`'s a16), so choosing one changes nothing outside this repository; the review of the profile judges that it is unique. `RELAY-` is the main repository's until M6 moves those rules, so the relay's own invariants take another prefix until then, which task 10 proposes. The relay goes on citing the main repository's rules by ID as binding beside its own | The substance: nothing. The form: `loop-contract` merged | M1a for the substance (below); M1b, task 10, for the form |
-| 4. A design template | `docs/design/TEMPLATE.md`: the contract's core front matter and sections, plus this repository's. This design follows the main repository's template by hand and is not rewritten | `loop-contract` merged: it names the core keys | M1b, task 10 |
-| 5. Its consumables declared | In the profile: what it releases, which is the release forms (seam 8), the first of them the stub pre-release; and what it consumes, which is the specifications release and the three forks | The stub: the kernel fork's tag, the builder image, the repository public. The declaration: `loop-contract` merged | M1a, task 9, for the stub; M1b, task 10, for the declaration |
-| 6. The repository set up as FLOW-08, FLOW-16 and FLOW-18 need | Only Jeff merges to `main`, with the trunk protected where the host offers that; head branches deleted on merge; sessions recorded only to the private sessions repository, and the FLOW-18 guard run here (a11). Read on 2026-11-14, this repository is private, keeps head branches on merge, and cannot be protected on its current plan. So the deletion setting is turned on before task 0 merges, the guard lands in task 1, and `main` is protected in the sitting that makes the repository public (a16; `loop-contract`'s a21 lets a repository adopt while private) | Nothing, but for protection, which needs the visibility change | M1a: task 0, task 1, and **Going public** step 11 |
+| 1. The link | `README.md` and a new agent context file, `AGENTS.md`, link to the contract at the URL above: the main repository's trunk, not a copy and not a commit or a tag. The link changes once, when P1's last item moves the contract to the loop repository | Nothing: the target exists | M1b, task 10 |
+| 2. The profile | One document, beside the rules, with an entry or `none` for each of LOOP-01's nineteen terms; the entries are in the table below. LOOP-01 makes the profile one of the component's own rules: "it carries a rule header under a prefix the component owns" | Nothing outside this repository. Its entries name what M1a builds | M1b, task 10 |
+| 3. Its invariants as rules | In LINT-01's format (an ID, a severity, a check), under a prefix this repository names in its profile, its safety invariants among them. No prefix is registered in the contract (`loop-contract`'s a16), so choosing one changes nothing outside this repository. LOOP-08 on prefixes: "`LOOP-`, `FLOW-` and `LINT-` are the loop's. A component names its prefixes in its profile and takes none that another profile names." The main repository's profile names nine (PROFILE-01, through its README's ID scheme table): `GLOBAL-`, `RELAY-`, `ORCH-`, `EXEC-`, `BOOT-`, `UX-`, `TEST-`, `SEC-` and `PROFILE-`. So the relay's rules, and its profile's own header, take none of those twelve. `RELAY-` is the main repository's until M6 moves those rules; task 10 proposes the relay's prefix. LOOP-08 also lets a component "cite another component's rule by ID as binding in its own repository", which is how the relay goes on holding the main repository's rules beside its own | The substance: nothing. The form: nothing outside this repository | M1a for the substance (below); M1b, task 10, for the form |
+| 4. Its designs | `docs/design/TEMPLATE.md`: the front matter and sections that FLOW-02, FLOW-12 and FLOW-19 name, the two additions the main repository's template gained with the contract (a **Specification changes** section, required when `seams` is not empty, LOOP-02; under **Design**, the repositories an item works in other than its own, LOOP-04), and this repository's own. This design follows the main repository's template by hand and is not rewritten: its `seams` is empty, so it has no **Specification changes** section, and it names its second repository, `buildwarden/hermit-kernel` (the introduction, a17, **Rules mirrored**) | Nothing | M1b, task 10 |
+| 5. Its consumables | In the profile's Consumables entry, as LOOP-07 lists them: "its tagged releases, the specifications each implements and at which versions, and its artifact forms". The first release is the stub pre-release, `v0.0.1`: it implements no specification, and its forms are the release forms of seam 8 that M1 builds. What it consumes, and at which version: the three forks, each at the tag `pins.toml` names, and the specifications release once task 12 pins one | The stub: the kernel fork's tag, the builder image, the repository public. The declaration: nothing more | M1a, task 9, for the stub; M1b, task 10, for the declaration |
+| 6. Merges, branches and sessions | Only Jeff merges to `main` (FLOW-08), with the trunk protected where the host offers that; head branches deleted on merge (FLOW-16); sessions recorded only to the private sessions repository, and the FLOW-18 guard run here (a11). Read on 2026-11-14, this repository is private, keeps head branches on merge, and cannot be protected on its current plan. So the deletion setting is turned on before task 0 merges, the guard lands in task 1, and `main` is protected in the sitting that makes the repository public (a16). The step asks for protection "where its host offers that", so a repository may adopt while private (`loop-contract`'s a21) | Nothing, but for protection, which needs the visibility change | M1a: task 0, task 1, and **Going public** step 11 |
+
+**The profile, term by term.** LOOP-01 lists nineteen terms. "A term the
+component does not have is filled as `none`", and "A term left unfilled
+is a finding; it is never read as another component's entry." Task 10
+writes an entry for each. The second column is LOOP-01's own "What the
+component says"; the third is what this design settles of the entry:
+
+| Term | LOOP-01 | This repository's entry |
+|---|---|---|
+| Component | "Its name and repository" | `buildwarden-relay`, in `buildwarden/buildwarden-relay`: the Rust relay and its release forms |
+| Trunk | "The branch only a human merges to" | `main` |
+| Toolchain | "Its language and build tools" | Rust, at the three toolchains `pins.toml` names; `cargo` and `cargo xtask`; the builder image |
+| Rules | "Where its invariants are, and the prefixes it owns" | `docs/invariants.md`, once task 10 has rewritten it as rules; the profile itself; and the prefix of step 3 |
+| Designs | "The design directory, the template and the sections the template adds" | `docs/design/<item>.md`, written from `docs/design/TEMPLATE.md` (step 4) |
+| Impact vocabulary | "The values its designs may declare, and the keys it adds" | The template's front matter. This design uses the main repository's keys and values; task 10 says which the relay keeps and what its `seams` may name |
+| Specifications | "The seams it owns or implements, where each specification is, and how it pins a release" | It implements seams 1, 2, 3 and 6 and writes seam 4, and its releases are one side of seam 8, which has no specification yet (**Rules mirrored**, GLOBAL-08; a20). No specification is kept here. The pin is `[conformance]` in `pins.toml`. It is empty until task 12, and until then the entry says, as the main repository's does, that no specifications release is pinned |
+| Fast gate | "The lint and test commands every change passes" | `cargo fmt --all --check`, `cargo clippy` with `-D warnings`, `cargo test --workspace`, `cargo xtask check-pins` and `cargo xtask lint-sources` |
+| Checks | "For each class, where its checks are defined, their tier, and any that do not block" | The jobs of **CI**, sorted by task 10 into LOOP-03's four classes (build, specification, safety, process), each with its tier, and the VZ boot as native validation. LOOP-03 has a deterministic check that does not block declared "by name in its profile". From this design those are the Firecracker boot while it is a trial (a23) and `audit.yml`'s daily run, which fails no pull request |
+| Test tiers | "Its tiers of tests and where each runs" | Tiers 0, 1 and 2, as **Rules mirrored** has them under TEST-01 and TEST-02 |
+| Native hosts | "The host names its work uses" | `macos-vz` in M1, from the one host table; `windows-hyperv` once M2 gives the appliance a disk form |
+| Reference documents | "The documents that change with user-facing behaviour, and its guides" | For user-facing behaviour, `none` while the binaries are stubs (`surfaces: []`); M2 fills it. Guides: `README.md`, `CONTRIBUTING.md` and `docs/building.md` |
+| Sweep | "Its dead-code command, what that may keep, and its overview document" | Task 10 proposes it. The starting point: no separate command, since `clippy` with `-D warnings` already fails on the compiler's dead-code warning; and `none` for the overview document until M2 gives the relay behaviour to describe |
+| Boundary rule | "Its rule for changes that need a security note" | GLOBAL-06, cited from the main repository and read as **Rules mirrored** reads it |
+| Flaky-test rule | "Its rule for a failure that does not reproduce" | TEST-04, cited from the main repository: a smoke boot is not retried (**Rules mirrored**) |
+| Rule and machinery paths | "The paths whose change is a rule change, and the loop's machinery in its tree" | Rule changes: `docs/invariants.md`, the profile, `docs/design/TEMPLATE.md`, and what enforces the rules, which task 10 lists. The candidates are the lint tables in `Cargo.toml`, `clippy.toml`, `deny.toml`, `xtask`'s checks, `tests/lint-fixtures/` and the jobs that run them. Machinery: none of the loop's tools, skills or agent definitions is in this tree. `tools/flow18-check.sh` and `flow18.yml` enforce a loop rule, FLOW-18, and LOOP-09 has such a check change only through a process item "wherever they are kept"; the entry says so |
+| Release | "How a release is cut and where its gate is wired" | A `v*` tag, pushed by Jeff or by an attended session on his word, runs `release.yml`, which builds twice and compares before it publishes (a13, **Publication**); the VZ boot of the tagged commit comes first (task 9) |
+| Consumables | "What it releases, and what it consumes at which version" | Step 5 |
+| Sessions | "Its session-recording configuration" | `.entire/settings.json`, naming `buildwarden/buildwarden-sessions`; `tools/flow18-check.sh`; the `flow18` workflow (a11) |
+
+As revised on 2026-11-14 this design named twelve of the nineteen, from
+the term list as it then stood. Of the seven it did not name, Component,
+Impact vocabulary, Test tiers and the Flaky-test rule follow from what
+the design already says. Reference documents, Sweep, and Rule and
+machinery paths do not: what the table says of them is a starting point
+for task 10, not a decision of this design. From adoption, a FLOW or LINT
+rule that names a path, a command or a rule of the main repository is
+read here as the profile's entry for that term (LOOP-01).
+
+**Who judges it.** LOOP-08: "the design review of an adopting component's
+first item judges the six steps, and that its prefixes are no other
+component's". LOOP-01: "the design review of a change to a profile judges
+that every term is filled or `none`". This design is the relay's first
+item, and its review can judge the six steps as the two tables above plan
+them. It cannot judge the prefix or the profile's wording, which do not
+exist until task 10 writes them. So task 10 puts both to Jeff before its
+pull request merges, and his judgment is recorded as a further entry
+under **Design review**. He may instead name the prefix in this design's
+review; nothing else here would change.
 
 The substance of step 3 is M1a's and waits for nothing: the invariants
 themselves as CI jobs (three crates, two architectures,
@@ -2283,28 +2452,32 @@ checks), and `docs/invariants.md` as a plain table of each invariant and
 the job that enforces it. So are the README, `CONTRIBUTING.md` and
 `SECURITY.md` (a14), which no step asks for.
 
-Task 10 is the rows that wait only for `loop-contract` to merge. It can
-run as soon as that merge happens, whether or not M1a has finished. If the
-`loop-contract` design changes before it merges (the steps, the profile's
-terms, the rule format, where the contract is), task 10 changes with it
-and nothing in M1a does: M1a builds the substance, and task 10 gives it
-the contract's form.
+Task 10 is the rows marked M1b. They waited for `loop-contract` to merge.
+It merged on 2026-11-15, so the steps, the profile's terms, the rule
+format and the contract's place are fixed, and nothing in another
+repository holds task 10. It follows M1a: the profile's entries name what
+M1a builds (the gate's commands, the CI jobs, the release workflow, the
+stub release and its forms), and an entry written before those exist
+would not match the repository. It can be the next pull request after the
+one that closes M1a. M1a builds the substance, and task 10 gives it the
+contract's form.
 
 **What adopting does not include: a queue.** There is one queue, on the
 main repository's `workflow` branch, for work in every repository, and a
-component has none of its own (`loop-contract`'s a18). This repository's
+component has none of its own (LOOP-04, LOOP-08; `loop-contract`'s a18).
+This repository's
 work becomes items in that queue which name
 `buildwarden/buildwarden-relay`. That is not a step of LOOP-08. It is what
 P1's later items owe before the loop's gates run here, and each brings a
 part:
 
-| P1 item | State on 2026-11-14 | What it brings for this repository | Until then |
+| P1 item | State on 2026-11-15 | What it brings for this repository | Until then |
 |---|---|---|---|
-| `loop-contract` | In its design review | The contract on `main`, so task 10 can run | M1a builds the substance |
-| `alters-slot` | In implementation | Nothing here: this design alters no relationship | |
-| `loop-parallel` | Not yet filed | The queue records the repositories an item names. What is still open of M1 is recorded as an item that names this repository, tracked and not gated (a17) | M1a is outside the queue, attended, with the **Design review** entry as its gate |
-| `loop-native-lead` | Not yet filed | A native machine may lead an item from its first step, so the MacBook could lead work that rests on a VZ boot. For work in this repository, only once `loop-repository` has also landed, since that is what gives the native machines a checkout of it and its toolchain (a17) | The VZ boots are attended sessions that Jeff starts, until both items have landed |
-| `loop-repository` | Queued, not designed | `wf`'s gates, branches, pull requests and checks in this repository, with `wf` reading its profile; a checkout of it and its toolchain on the native machines; the rule for what a private repository's work shows in the public queue. From then on each relay task is an item `wf` gates. The first to complete shows that the one queue works across repositories: that is the wave-1 gate under `loop-contract`'s a22 as recommended (open), and P1's done-when asks for the same again after the move (its U9). Which relay item it is, if M1 is done by then, is a26. The two tracked native gaps go on the queue's native-gap backlog | Each task is a pull request worked by hand (a17) |
+| `loop-contract` | Merged on 2026-11-15 (`ad4ea50`) | The contract on `main`, with its text final, so task 10 waits for nothing outside this repository | Task 10 follows M1a |
+| `alters-slot` | Merged before it (`897a4a8`) | Nothing here: this design alters no relationship | |
+| `loop-parallel` | In its design review | The queue records the repositories an item names. What is still open of M1 is recorded as an item that names this repository, tracked and not gated (a17). It also amends FLOW-05 so that a reconciliation item ranks with the fixes (`loop-contract`'s a23, answered as recommended) | M1a is outside the queue, attended, with the **Design review** entry as its gate |
+| `loop-native-lead` | Queued, not yet designed | A native machine may lead an item from its first step, so the MacBook could lead work that rests on a VZ boot. For work in this repository, only once `loop-repository` has also landed, since that is what gives the native machines a checkout of it and its toolchain (a17). It also amends FLOW-04, the host table and the lease for work any capable machine can do (`loop-contract`'s a24, answered as recommended), which no M1 work is | The VZ boots are attended sessions that Jeff starts, until both items have landed |
+| `loop-repository` | Queued, not yet designed | `wf`'s gates, branches, pull requests and checks in this repository, with `wf` reading its profile; a checkout of it and its toolchain on the native machines; the rule for what a private repository's work shows in the public queue. From then on each relay task is an item `wf` gates. The first to complete shows that the one queue works across repositories: that is the wave-1 gate, which M2 waits for (`loop-contract`'s a22, answered as recommended), and P1's done-when asks for the same again after the move (its U9). Which relay item it is, if M1 is done by then, is a26. The two tracked native gaps go on the queue's native-gap backlog | Each task is a pull request worked by hand (a17) |
 | The move to the loop repository | Not yet filed; P1's last item | The link of step 1 changes, once. P1 is done when a relay item has completed from the queue there (`loop-contract`'s U9) | Links to the contract point at the main repository |
 
 What each of those items does is its own design's to settle. The third
@@ -2316,22 +2489,27 @@ draft and from this design as first drafted:
 
 - *Routing.* The profile lists host names. Which machine serves a host
   name is the one host table's to say, beside the queue, not a
-  component's (`loop-contract`'s a15, parts a and c). Jeff's draft,
-  section 5, sends Hyper-V, Windows and Linux-host work to the Windows
-  desktop; the host table has `qemu-any` on the MacBook, and the table
-  wins. Work that any capable machine can do goes to whichever capable
-  worker next takes steps, under a lease that can be renewed (part b of
-  that question, as Jeff answered it; which later P1 item changes
-  FLOW-04 and the host table to match is its a24, open, with
-  `loop-native-lead` recommended). M1's one native need is `macos-vz`.
+  component's (LOOP-05; `loop-contract`'s a15, parts a and c). Jeff's
+  draft, section 5, sends Hyper-V, Windows and Linux-host work to the
+  Windows desktop; the host table has `qemu-any` on the MacBook, and the
+  table wins. Work that any capable machine can do goes to whichever
+  capable worker next takes steps, under a lease that can be renewed
+  (part b of that question, as Jeff answered it). That is decided, and
+  `loop-native-lead` makes it true by amending FLOW-04, the host table
+  and the lease (its a24, answered as recommended). Until that item
+  lands, FLOW-04 gives each host name to one machine. M1's one native
+  need is `macos-vz`, a named host, so nothing in M1 turns on it.
 - *Reconciliation.* Moving the `[conformance]` pin to a new specifications
-  release, or the fork pins to a new Hermit tag, is what the contract
-  calls a reconciliation item ("adopt X at version Y"). Once the queue
-  holds this repository's work, each is a feature item that FLOW-05 ranks
-  with the fixes (`loop-contract`'s a5, as Jeff answered it; which later
-  P1 item makes FLOW-05 say so is its a23, open, with `loop-parallel`
-  recommended). Task 12 sets the first pin by hand, unless it is the
-  item held for the wave-1 gate (a26, option C).
+  release is what LOOP-07 calls a reconciliation item,
+  `adopt <consumable> at <version>`: "a feature item (LOOP-04), filed
+  through intake, and FLOW-05 gives its place in the order". Moving the
+  fork pins to a new Hermit tag is treated the same way here, though the
+  forks are not components until they adopt. Jeff decided that such an
+  item ranks with the fixes (`loop-contract`'s a5), and `loop-parallel`
+  makes that true by amending FLOW-05 (its a23, answered as
+  recommended). Until that item lands, FLOW-05 ranks a reconciliation
+  item as it ranks any feature. Task 12 sets the first pin by hand,
+  unless it is the item held for the wave-1 gate (a26, option C).
 
 **What waits for S1**, and is not adoption:
 
@@ -2628,11 +2806,13 @@ hashes recorded at the boot equal the published ones; `v0.0.1` is
 published and a rebuild from its commit on another machine gives the
 published manifest. For M1b: the README and `AGENTS.md` link to the Loop
 Contract, the profile, the rules and the design template are in its form,
-and the consumables are declared (LOOP-08's steps as merged); the
+and the consumables are declared (LOOP-08's six steps); the profile has
+an entry or `none` for each of LOOP-01's nineteen terms, and Jeff's
+judgment of it and of the prefix is recorded under **Design review**; the
 conformance pin is set and the dispatch run against the Go relay's image
 has passed. A relay item completing through `wf`'s gates is not part of
 M1's done-when (a26). It is what `loop-repository` is to show, which is
-the wave-1 gate under `loop-contract`'s a22 as recommended (open), and
+the wave-1 gate (`loop-contract`'s a22, answered as recommended), and
 what P1's done-when asks for again after the move.
 
 **Not validated by M1, and said so:** that the reproducibility method holds
@@ -2773,16 +2953,23 @@ each task still open is an item `wf` gates.
 
 **M1b: each task names what it waits for.**
 
-10. *Waits for `loop-contract` to merge in the main repository; does not
-    wait for any later P1 item or for M1a to finish.* LOOP-08's steps as
-    merged, in the form **The Loop Contract adopted** gives them:
-    `AGENTS.md`, and the link to the contract from it and from the README;
-    the profile, which names this repository's rule prefix, its host
-    names and what it releases and consumes; `docs/invariants.md`
-    rewritten as rules in LINT-01's format under that prefix;
-    `docs/design/TEMPLATE.md`. Nothing is registered in the contract and
-    nothing in the main repository changes. Rules: the contract's LOOP-01
-    and LOOP-08 as merged; LINT-01.
+10. *Waits for no other item: `loop-contract` merged in the main
+    repository on 2026-11-15. Follows M1a, whose files its profile names;
+    does not wait for any later P1 item.* LOOP-08's six steps, in the
+    form **The Loop Contract adopted** gives them: `AGENTS.md`, and the
+    link to the contract's trunk from it and from the README (step 1);
+    the profile, written as a rule under a prefix this repository owns,
+    with an entry or `none` for each of LOOP-01's nineteen terms, its
+    rule prefix, its host names and what it releases and consumes among
+    them (steps 2 and 5); `docs/invariants.md` rewritten as rules in
+    LINT-01's format under that prefix (step 3);
+    `docs/design/TEMPLATE.md` (step 4). Step 6 is M1a's. The prefix is
+    none of the twelve that the loop and the main repository's profile
+    name. Before the pull request merges, the prefix and the profile are
+    put to Jeff, and his judgment is recorded under **Design review**
+    (the agent parts of LOOP-01 and LOOP-08). Nothing is registered in
+    the contract and nothing in the main repository changes. Rules:
+    LOOP-01, LOOP-08; LINT-01.
 11. **This repository's work in the one queue.** Not part of M1's
     done-when (a26), and not a pull request here until its last part. It
     is listed so that what a17 defers has a place.
@@ -2797,14 +2984,13 @@ each task still open is an item `wf` gates.
       taken through `wf`'s gates here, the first. It is task 10 or task
       12 if either is still open. If both are done, it is a small relay
       item filed at intake with Jeff for the purpose (a26), and not M2's
-      first item: under `loop-contract`'s a22 as recommended, M2 waits
-      for this item to complete. Its completion shows that the one queue
-      works across repositories, which is the wave-1 gate under that
-      option; P1's done-when asks for a relay item again after the move
-      (its U9), and that one can be M2's.
+      first item: M2 waits for this item to complete (`loop-contract`'s
+      a22, answered as recommended). Its completion shows that the one
+      queue works across repositories, which is the wave-1 gate; P1's
+      done-when asks for a relay item again after the move (its U9), and
+      that one can be M2's.
 
-    Rules: the contract's rules for an item and its repositories, as
-    merged; TEST-03.
+    Rules: LOOP-04; TEST-03.
 12. *Waits for the first release of `buildwarden-specs`.* Set
     `[conformance]`; add `conformance-dispatch.yml`; run it against the Go
     relay's image with the main repository's `relay-oci` target file;
@@ -2912,8 +3098,9 @@ restated; the Go relay retired; then, and not before, anything raised with
   optimized unikernel is still only exercised by booting it.
 - **Pushing `unsafe` out of the workspace pushes work into the forks**
   (a2), where review is harder and upstreaming is on hold.
-- **The S1, P1 and K1 designs are not merged, and P1's later items are
-  not designed.** M1b absorbs the final shape of the first two; M1a is
+- **The S1 and K1 designs are not merged, and P1's later items are not
+  approved.** The Loop Contract is merged and its text is final, so task
+  10 has a fixed target. Task 12 absorbs the final shape of S1's; M1a is
   built not to depend on it. What this design says each later P1 item
   brings (**The Loop Contract adopted**) is a reading, and those items'
   designs may decide otherwise.
@@ -2930,11 +3117,11 @@ restated; the Go relay retired; then, and not before, anything raised with
 - **No tool enforces the order of work** until `wf` can gate work in this
   repository (a17). The design review entry and the task preconditions
   are kept by the sessions that do the work and by Jeff's merges.
-- **The wave-1 gate may want a relay item after M1 has none left.** Under
-  a26's recommended option M1 can be done before `loop-repository` lands,
-  and under `loop-contract`'s a22 as recommended M2 waits for a relay
-  item to complete from the one queue. A small item is then filed for
-  the purpose (a26, task 11). Both questions are open.
+- **The wave-1 gate wants a relay item, and M1 may have none left.** M2
+  waits for a relay item to complete from the one queue (`loop-contract`'s
+  a22, answered as recommended). Under a26's recommended option M1 can be
+  done before `loop-repository` lands. A small item is then filed for
+  the purpose (a26, task 11). a26 is open.
 - **The kernel fork has no guard.** Task 3's session works in a public
   repository with no session-recording configuration, no branch
   protection and no deletion on merge. The four rules are held there by
@@ -2947,14 +3134,17 @@ restated; the Go relay retired; then, and not before, anything raised with
 
 ## Design review
 
-(None yet. The revision of 2026-11-14 was made before any review and is
-described at the end of **Prior art**; it is not a review entry.)
+(None yet. The revision of 2026-11-14 and the update of 2026-11-15 were
+made before any review and are described at the end of **Prior art**;
+neither is a review entry.)
 
 There is no queue file, so the entry written here is the record of the
 approval and the gate for the implementation plan. An approval names
 `approved at <sha>` and, by ID, each assumption it confirms or changes. It
 gives Jeff's explicit word on a14, a15, a21, a24 and a25, and on the three
-acceptances in a13.
+acceptances in a13. Task 10 adds an entry of its own: Jeff's judgment of
+the relay's rule prefix and of its profile (**The Loop Contract
+adopted**).
 
 ## Consolidation
 
