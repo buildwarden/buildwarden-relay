@@ -1,0 +1,42 @@
+name: ci
+
+# Added by the componentization setup because this repository had no CI that
+# runs on pull requests. ci-ok is the one check its rulesets require. Review
+# the cargo steps against how the repository really builds before merging.
+on:
+  push:
+    branches: [main, 'program/**']
+  pull_request:
+    branches: [main, 'program/**']
+
+permissions:
+  contents: read
+
+jobs:
+  rust:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - id: cargo
+        run: |
+          if [ -f Cargo.toml ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "no Cargo.toml: nothing to build"
+          fi
+      - if: steps.cargo.outputs.present == 'true'
+        run: cargo fmt --all --check
+      - if: steps.cargo.outputs.present == 'true'
+        run: cargo test --workspace
+
+  ci-ok:
+    needs: [rust]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          NEEDS: ${{ toJSON(needs) }}
+        run: jq -e 'all(.[]; .result == "success" or .result == "skipped")' <<< "$NEEDS"
